@@ -1,0 +1,31 @@
+name: renovate
+
+# Self-hosted Renovate run (weekly + manual). Honors renovate.json, which gates
+# everything behind the Dependency Dashboard (dependencyDashboardApproval).
+on:
+  schedule:
+    - cron: "0 4 * * 1" # Monday 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write # Dependency Dashboard issue
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Renovate
+        # TODO: ratchet to SHA (Renovate)
+        uses: renovatebot/github-action@v40
+        with:
+          configurationFile: renovate.json
+          token: ${{ secrets.GITHUB_TOKEN }}

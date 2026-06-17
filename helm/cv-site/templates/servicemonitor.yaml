@@ -1,0 +1,23 @@
+{{- if .Values.serviceMonitor.enabled }}
+# ServiceMonitor is picked up by Azure Managed Prometheus (Prometheus Operator
+# CRDs). Scrapes the exporter sidecar's /metrics for RED dashboards in Grafana.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "cv-site.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cv-site.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "cv-site.selectorLabels" . | nindent 6 }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+{{- end }}

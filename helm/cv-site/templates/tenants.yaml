@@ -1,0 +1,30 @@
+# Multi-tenant isolation DEMO. One namespace per tenant, each locked down with a
+# default-deny NetworkPolicy (ingress + egress). Demonstrates the tenant
+# isolation required for confidential client data: tenants cannot reach each
+# other, and nothing reaches them, unless an explicit allow is added later.
+{{- range $tenant := .Values.tenants }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $tenant }}
+  labels:
+    {{- include "cv-site.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: tenant
+    # Stable name label used by NetworkPolicy namespaceSelectors elsewhere.
+    kubernetes.io/metadata.name: {{ $tenant }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: {{ $tenant }}
+  labels:
+    {{- include "cv-site.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: tenant
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+{{- end }}

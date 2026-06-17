@@ -1,0 +1,90 @@
+---
+// Each row maps a Newcode.ai JD requirement -> a one-line claim -> a real path
+// in THIS repo that proves it. Links are repo-relative so they resolve on
+// GitHub when the site README/source is browsed, and as anchors here.
+const repo = 'https://github.com/sullson/newcode-devops/blob/main';
+
+interface Row {
+  req: string;
+  claim: string;
+  path: string;
+}
+
+const rows: Row[] = [
+  {
+    req: 'Azure (IaC)',
+    claim: 'Whole platform — RG, AKS, ACR, Key Vault, monitoring — is Terraform.',
+    path: 'terraform/aks.tf',
+  },
+  {
+    req: 'AKS',
+    claim: 'Private-API-server cluster; nodes, identities, add-ons codified.',
+    path: 'terraform/aks.tf',
+  },
+  {
+    req: 'Terraform',
+    claim: 'azurerm remote state; pinned providers; OIDC plan/apply in CI.',
+    path: 'terraform/main.tf',
+  },
+  {
+    req: 'Helm',
+    claim: 'cv-site chart: Deployment, HPA, PDB, ServiceMonitor, NetworkPolicy.',
+    path: 'helm/cv-site/Chart.yaml',
+  },
+  {
+    req: 'GitHub Actions',
+    claim: 'Build, scan, sign, then helm-upgrade to private AKS over Tailscale.',
+    path: '.github/workflows/deploy-aks.yml',
+  },
+  {
+    req: 'Multi-tenant isolation',
+    claim: 'Per-tenant namespaces with default-deny NetworkPolicy.',
+    path: 'helm/cv-site/templates/networkpolicy.yaml',
+  },
+  {
+    req: 'Model-serving infra',
+    claim: 'Reproducible container + Helm pattern for serving any AI workload.',
+    path: 'docs/architecture.md',
+  },
+  {
+    req: 'Monitoring / alerting',
+    claim: 'Managed Prometheus ServiceMonitor + Grafana RED dashboard + SLO.',
+    path: 'SLO.md',
+  },
+  {
+    req: 'Security',
+    claim: 'Zero secrets in repo: OIDC, Key Vault + CSI, gitleaks, Trivy, cosign.',
+    path: 'SECURITY.md',
+  },
+  {
+    req: 'AI agents',
+    claim: 'How this platform hosts agentic AI workloads for legal/pro services.',
+    path: 'docs/ai-agents.md',
+  },
+];
+---
+
+<div class="table-scroll">
+  <table class="evidence">
+    <thead>
+      <tr>
+        <th scope="col">JD requirement</th>
+        <th scope="col">Claim</th>
+        <th scope="col">Proof in this repo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((r) => (
+          <tr>
+            <td>{r.req}</td>
+            <td>{r.claim}</td>
+            <td class="proof">
+              <a href={`${repo}/${r.path}`}>{r.path}</a>
+            </td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>

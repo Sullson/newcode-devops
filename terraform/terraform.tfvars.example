@@ -1,0 +1,18 @@
+# Example Terraform variables. Copy to terraform.tfvars (gitignored) and fill in.
+# NON-secret only. Azure auth is GitHub OIDC workload-identity federation — there is
+# NO client secret here. The Cloudflare API token is passed via the CLOUDFLARE_API_TOKEN
+# env var (from GitHub Actions secrets), never as a tfvar.
+# subscription_id / tenant_id / cloudflare_account_id are sensitive identifiers:
+# keep terraform.tfvars OUT of git.
+
+subscription_id       = "REPLACE_ME"
+tenant_id             = "REPLACE_ME"
+cloudflare_account_id = "REPLACE_ME"
+
+# Defaults below are already set in variables.tf; override only if needed.
+# location              = "swedencentral"
+# cloudflare_zone       = "msulawiak.pl"
+# github_repo           = "sullson/newcode-devops"
+# tailscale_tailnet     = "REPLACE_ME"
+# node_count            = 1
+# vm_size               = "Standard_B2s"

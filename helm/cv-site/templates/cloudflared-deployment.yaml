@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cv-site.fullname" . }}-cloudflared
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cv-site.cloudflared.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.cloudflared.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cv-site.cloudflared.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cv-site.cloudflared.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ingress
+        # Needed so the SecretProviderClass CSI mount can use workload identity.
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: {{ include "cv-site.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cloudflared
+          image: "{{ .Values.cloudflared.image.repository }}:{{ .Values.cloudflared.image.tag }}"
+          imagePullPolicy: {{ .Values.cloudflared.image.pullPolicy }}
+          args:
+            - tunnel
+            # No config file: token carries the tunnel id + routes.
+            - --no-autoupdate
+            # Bind the metrics/ready server so the liveness probe has a target.
+            - --metrics
+            - 0.0.0.0:2000
+            - run
+          env:
+            # Token is synced from Key Vault into a k8s Secret by the
+            # SecretProviderClass; the repo never sees the value.
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.tunnel.secretName }}
+                  key: {{ .Values.tunnel.secretObjectName }}
+          # Built-in metrics/health endpoint; also a cheap liveness signal.
+          ports:
+            - name: cf-metrics
+              containerPort: 2000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: cf-metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.cloudflared.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          # The CSI volume must be mounted for the driver to sync the secret;
+          # cloudflared reads the token via env, the file mount triggers sync.
+          volumeMounts:
+            - name: tunnel-token
+              mountPath: /mnt/secrets-store
+              readOnly: true
+      volumes:
+        - name: tunnel-token
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ include "cv-site.fullname" . }}-tunnel

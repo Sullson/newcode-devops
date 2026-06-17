@@ -1,0 +1,28 @@
+cv-site {{ .Chart.AppVersion }} deployed to namespace {{ .Release.Namespace }} (release: {{ .Release.Name }}).
+
+Architecture recap:
+  * The site is served by nginx on :{{ .Values.containerPorts.http }} behind a ClusterIP Service.
+  * Ingress is OUTBOUND-ONLY: {{ .Values.cloudflared.replicaCount }}x cloudflared dial the Cloudflare edge.
+    The cluster has ZERO inbound ports open to the internet.
+  * The tunnel token is read from Key Vault ({{ .Values.keyVault.name }}) via the
+    Secrets Store CSI Driver + Workload Identity. No secrets in this repo.
+
+Verify rollout:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "cv-site.fullname" . }}
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "cv-site.fullname" . }}-cloudflared
+
+Check health from inside the cluster (API server is PRIVATE; use the tailnet):
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "cv-site.fullname" . }} 8080:{{ .Values.service.port }}
+  curl -fsS http://127.0.0.1:8080/healthz
+
+{{- if .Values.serviceMonitor.enabled }}
+Metrics: nginx-prometheus-exporter on :{{ .Values.exporter.port }} is scraped by the
+ServiceMonitor into Azure Managed Prometheus -> Grafana RED dashboard.
+{{- end }}
+
+Public URL: https://aks.newcode.msulawiak.pl (live only while the cluster is up).
+
+Tenant isolation demo namespaces:
+{{- range .Values.tenants }}
+  * {{ . }} (default-deny ingress + egress)
+{{- end }}

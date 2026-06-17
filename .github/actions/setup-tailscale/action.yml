@@ -1,0 +1,32 @@
+name: setup-tailscale
+description: >
+  Join the tailnet ephemerally so later steps can reach the PRIVATE AKS API
+  server through the Tailscale Kubernetes Operator's API-server proxy. The OAuth
+  client is ephemeral + tagged, so the CI node leaves no standing device.
+
+inputs:
+  oauth-client-id:
+    description: Tailscale OAuth client id (from GitHub Actions secrets).
+    required: true
+  oauth-secret:
+    description: Tailscale OAuth client secret (from GitHub Actions secrets).
+    required: true
+  tags:
+    description: ACL tags to apply to the ephemeral CI node.
+    required: false
+    default: tag:ci
+
+runs:
+  using: composite
+  steps:
+    - name: Connect to tailnet (ephemeral)
+      # TODO: ratchet to SHA (Renovate)
+      uses: tailscale/github-action@v3
+      with:
+        oauth-client-id: ${{ inputs.oauth-client-id }}
+        oauth-secret: ${{ inputs.oauth-secret }}
+        tags: ${{ inputs.tags }}
+        # Short hostname keeps the ephemeral node easy to spot in the admin console.
+        hostname: gh-ci-${{ github.run_id }}
+        # use-cache off: ephemeral runners gain nothing and it avoids stale state.
+        use-cache: "false"

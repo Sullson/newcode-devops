@@ -1,0 +1,23 @@
+# gitleaks config — extends the maintained default ruleset, then narrows
+# allowlisting to the deliberate placeholders this PUBLIC repo uses.
+# Run: pre-commit hook AND CI gate (full history).
+title = "newcode-devops gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Intentional, non-secret placeholders used throughout the repo."
+# These are the only sanctioned stand-ins for real values. Everything else
+# (real keys/tokens/GUIDs) must trip the scanner.
+regexes = [
+  '''REPLACE_ME''',
+  '''\{\{\s*TODO[^}]*\}\}''',
+  # GitHub Actions secret references are not values, just names.
+  '''\$\{\{\s*secrets\.[A-Z0-9_]+\s*\}\}''',
+]
+# Lockfiles contain integrity hashes that look high-entropy but are not secrets.
+paths = [
+  '''(.*?)package-lock\.json$''',
+  '''(.*?)\.terraform\.lock\.hcl$''',
+]

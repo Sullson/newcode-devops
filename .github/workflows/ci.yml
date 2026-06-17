@@ -1,0 +1,171 @@
+name: ci
+
+# PR + push to main. Docs-only changes skip CI (build/scan add no value there).
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  release:
+    types: [published]
+
+# Default to read-only; each job opts into the narrow extra scopes it needs.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ACR_LOGIN_SERVER: acrnewcodecv.azurecr.io
+  IMAGE_NAME: cv-site
+
+jobs:
+  gitleaks:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        # TODO: ratchet to SHA (Renovate)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  test:
+    name: lint-typecheck-build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup Node
+        # TODO: ratchet to SHA (Renovate)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+
+  build:
+    name: image-build-scan-sign
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # OIDC: Azure login + cosign keyless
+      security-events: write # Trivy SARIF -> Security tab
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Short SHA
+        id: vars
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login (OIDC, no secrets)
+        # TODO: ratchet to SHA (Renovate)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login via OIDC token (no admin user, no stored creds)
+        run: az acr login --name acrnewcodecv
+
+      - name: Build image
+        run: docker build -t "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.vars.outputs.sha }}" app
+
+      - name: Trivy scan (gate + SARIF)
+        # One scan: writes SARIF AND exits 1 on HIGH/CRITICAL so it still gates.
+        # TODO: ratchet to SHA (Renovate)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "1"
+
+      - name: Upload Trivy SARIF to Security tab
+        # always(): upload even when the gate above failed, so findings surface.
+        if: always()
+        # TODO: ratchet to SHA (Renovate)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
+      - name: Push image (only after scan passes)
+        run: docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.vars.outputs.sha }}"
+
+      - name: Install cosign
+        # TODO: ratchet to SHA (Renovate)
+        uses: sigstore/cosign-installer@v3
+
+      - name: Cosign keyless sign (OIDC / Sigstore)
+        run: |
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' \
+            "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.vars.outputs.sha }}")
+          cosign sign --yes "$DIGEST"
+
+  dependency-review:
+    name: dependency-review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Dependency Review
+        # TODO: ratchet to SHA (Renovate)
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+
+  # Promote the already-built, scanned, signed image to :latest on a GitHub
+  # Release. Server-side retag (az acr import) — zero rebuild, so :latest is
+  # byte-identical to the :<sha> that passed CI.
+  promote:
+    name: promote-latest-on-release
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # OIDC to Azure
+    steps:
+      - name: Short SHA
+        id: vars
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - name: Azure login (OIDC, no secrets)
+        # TODO: ratchet to SHA (Renovate)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Retag :<sha> -> :latest (server-side, no rebuild)
+        run: |
+          az acr import --name acrnewcodecv \
+            --source "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.vars.outputs.sha }}" \
+            --image "$IMAGE_NAME:latest" --force

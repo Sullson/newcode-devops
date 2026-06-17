@@ -1,0 +1,143 @@
+name: security-nightly
+
+# Deterministic nightly scan -> single deduplicated GitHub Issue. A self-contained
+# "lite" showcase of a scan->issue methodology (no external platform dependency).
+# Scanners: osv-scanner (deps), gitleaks (secrets), Trivy config (IaC: terraform/, helm/).
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-nightly
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: scan-and-report
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # create/update the security issue
+      security-events: write # Trivy IaC SARIF -> Security tab
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # --- osv-scanner: dependency vulnerabilities -----------------------------
+      - name: osv-scanner (deps)
+        id: osv
+        # TODO: ratchet to SHA (Renovate)
+        uses: google/osv-scanner-action/osv-scanner-action@v2
+        with:
+          scan-args: |-
+            --recursive
+            --output=osv.txt
+            ./
+        continue-on-error: true
+
+      # --- gitleaks: secrets ---------------------------------------------------
+      - name: gitleaks (secrets)
+        id: gitleaks
+        # TODO: ratchet to SHA (Renovate)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+        continue-on-error: true
+
+      # --- Trivy: IaC misconfig (terraform/ + helm/) ---------------------------
+      - name: Trivy config scan (IaC)
+        id: trivy
+        # TODO: ratchet to SHA (Renovate)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          format: table
+          output: trivy.txt
+          exit-code: "0" # report-only: findings drive the issue, not a failed job
+        continue-on-error: true
+
+      # Second pass in SARIF so the same IaC findings also land in the Security
+      # tab (Code scanning), not only in the human-readable issue below.
+      - name: Trivy config scan (SARIF)
+        # TODO: ratchet to SHA (Renovate)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          format: sarif
+          output: trivy.sarif
+          exit-code: "0"
+        continue-on-error: true
+
+      - name: Upload Trivy IaC SARIF to Security tab
+        if: always()
+        # TODO: ratchet to SHA (Renovate)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-iac
+
+      # --- Aggregate into one deterministic report -----------------------------
+      - name: Build report
+        id: report
+        run: |
+          {
+            echo "## Nightly security scan — $(date -u +%Y-%m-%d)"
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            for tool in osv gitleaks trivy; do
+              echo "### ${tool}"
+              echo '```'
+              case "$tool" in
+                osv)      cat osv.txt    2>/dev/null || echo "no output";;
+                gitleaks) echo "exit conclusion: ${{ steps.gitleaks.outcome }}";;
+                trivy)    cat trivy.txt  2>/dev/null || echo "no output";;
+              esac
+              echo '```'
+              echo
+            done
+          } > report.md
+
+          # Findings = any scanner that did not cleanly pass.
+          findings=false
+          [ "${{ steps.osv.outcome }}" = "failure" ] && findings=true
+          [ "${{ steps.gitleaks.outcome }}" = "failure" ] && findings=true
+          grep -qiE 'FAIL|CRITICAL|HIGH' trivy.txt 2>/dev/null && findings=true
+          echo "findings=$findings" >> "$GITHUB_OUTPUT"
+
+      - name: Upsert security issue
+        if: steps.report.outputs.findings == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="Nightly security findings"
+          # Reuse a single open issue (idempotent) instead of spamming nightly.
+          num=$(gh issue list --state open --label security \
+            --search "$title in:title" --json number --jq '.[0].number')
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body-file report.md
+          else
+            gh issue create --title "$title" --label security --body-file report.md
+          fi
+
+      - name: Close stale issue when clean
+        if: steps.report.outputs.findings == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          num=$(gh issue list --state open --label security \
+            --search "Nightly security findings in:title" --json number --jq '.[0].number')
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body "Scan clean on $(date -u +%Y-%m-%d). Closing."
+            gh issue close "$num"
+          fi

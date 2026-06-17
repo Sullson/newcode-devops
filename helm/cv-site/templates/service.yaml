@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cv-site.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cv-site.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "cv-site.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+    # Exposed in-cluster only, for the ServiceMonitor scrape.
+    - name: metrics
+      port: {{ .Values.exporter.port }}
+      targetPort: metrics
+      protocol: TCP

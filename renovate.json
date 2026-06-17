@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard"
+  ],
+  "timezone": "UTC",
+  "dependencyDashboardApproval": true,
+  "labels": ["dependencies", "renovate"],
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 5,
+  "git-submodules": { "enabled": false },
+  "pre-commit": { "enabled": true },
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "labels": ["dependencies", "github-actions"],
+      "pinDigests": true
+    },
+    {
+      "matchManagers": ["npm"],
+      "groupName": "npm dependencies",
+      "labels": ["dependencies", "npm"]
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "groupName": "docker base images",
+      "labels": ["dependencies", "docker"],
+      "pinDigests": true
+    },
+    {
+      "matchManagers": ["terraform"],
+      "groupName": "terraform providers and modules",
+      "labels": ["dependencies", "terraform"]
+    },
+    {
+      "matchUpdateTypes": ["pin", "digest"],
+      "automerge": false
+    }
+  ]
+}

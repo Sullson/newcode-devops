@@ -1,0 +1,115 @@
+# cv-site values. Public repo: ZERO secret values here. Secrets come from Azure
+# Key Vault via the Secrets Store CSI Driver + Workload Identity (see
+# secretproviderclass.yaml). Anything sensitive stays out of git by design.
+
+replicaCount: 2
+
+image:
+  repository: acrnewcodecv.azurecr.io/cv-site
+  # tag defaults to "latest"; CI overrides with the git short SHA on main.
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Workload Identity wires the in-cluster ServiceAccount to a user-assigned
+# managed identity in Azure (id-cv-app), letting pods read Key Vault with NO
+# stored credentials. clientId is injected by CI/Terraform at deploy time.
+workloadIdentity:
+  clientId: ""
+
+# ServiceAccount name is fixed: the Azure federated credential trusts the
+# subject system:serviceaccount:cv:cv-site, so this must stay "cv-site".
+serviceAccount:
+  name: cv-site
+
+# Key Vault that backs the Secrets Store CSI Driver (RBAC mode).
+keyVault:
+  name: kv-newcode-cv
+  # Azure tenant GUID; injected by CI/TF, never committed. Placeholder only.
+  tenantId: ""
+
+# Cloudflare Tunnel token: lives in Key Vault, synced to this k8s secret by the
+# SecretProviderClass. The repo never holds the token value.
+tunnel:
+  secretName: cloudflare-tunnel-token
+  # key name of the tunnel token inside Key Vault
+  secretObjectName: cloudflare-tunnel-token
+
+# cloudflared dials OUTBOUND to Cloudflare's edge; this is how app traffic
+# reaches a cluster that has zero inbound ports open.
+cloudflared:
+  replicaCount: 2
+  image:
+    repository: cloudflare/cloudflared
+    tag: "2024.12.2"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# nginx-prometheus-exporter sidecar scrapes nginx stub_status (127.0.0.1:8081)
+# and exposes RED-method metrics on :9113 for Managed Prometheus.
+exporter:
+  image:
+    repository: nginx/nginx-prometheus-exporter
+    tag: "1.4.0"
+    pullPolicy: IfNotPresent
+  port: 9113
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+# Container ports. http serves the static site; stubStatus is loopback-only and
+# consumed by the exporter sidecar (never exposed via the Service).
+containerPorts:
+  http: 8080
+  stubStatus: 8081
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+pdb:
+  minAvailable: 1
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+
+# Multi-tenant isolation DEMO: one namespace per tenant, each with a
+# default-deny NetworkPolicy. Proves confidential-data tenant isolation.
+tenants:
+  - tenant-a
+  - tenant-b
+
+# Minimal spread so the 2 replicas don't co-locate on one node.
+topologySpreadConstraints:
+  enabled: true
+  maxSkew: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

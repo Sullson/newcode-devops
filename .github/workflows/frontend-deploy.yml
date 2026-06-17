@@ -1,0 +1,50 @@
+name: frontend-deploy
+
+# Cheap, always-on path: build the Astro static site and ship it to Azure
+# Static Web Apps (free tier). This front is up 24/7; the AKS proof is on-demand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: build-and-deploy-swa
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node
+        # TODO: ratchet to SHA (Renovate)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Build Astro static output
+        working-directory: app
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to Azure Static Web Apps
+        # SWA deploy token is the supported auth for the Oryx deploy action;
+        # OIDC is not yet a first-class path for SWA content uploads.
+        # TODO: ratchet to SHA (Renovate)
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOY_TOKEN }}
+          action: upload
+          app_location: app
+          output_location: dist
+          skip_app_build: "true" # already built above with npm ci

@@ -1,0 +1,17 @@
+apiVersion: v2
+name: cv-site
+description: >-
+  Static CV/landing site for a Senior DevOps engineer, served on a
+  PRIVATE AKS cluster. Ingress via Cloudflare Tunnel (outbound only) and
+  RED-method observability via Managed Prometheus. Zero inbound ports.
+type: application
+# Chart version is the chart's own semver; appVersion tracks the site image and
+# is overridden by CI with the git short SHA at package/deploy time.
+version: 0.1.0
+appVersion: "latest"
+kubeVersion: ">=1.29.0-0"
+home: https://newcode.msulawiak.pl
+sources:
+  - https://github.com/sullson/newcode-devops
+maintainers:
+  - name: Sullson

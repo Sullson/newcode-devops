@@ -1,0 +1,237 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Section from '../components/Section.astro';
+import EvidenceTable from '../components/EvidenceTable.astro';
+
+const repo = 'https://github.com/sullson/newcode-devops';
+---
+
+<Layout>
+  <!-- (1) Hero -->
+  <header class="hero">
+    <div class="wrap">
+      <h1>
+        <span class="accent">Senior DevOps</span> for production AI infrastructure
+      </h1>
+      <p>
+        I build and run production-grade <strong>Azure / AKS</strong> platforms —
+        Terraform, Helm, GitHub Actions, observability, multi-tenant isolation,
+        secure by default. Everything below this line lives in this repo and
+        actually runs. Not a list of skills — the working proof.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn--primary" href="#contact">Let's talk</a>
+        <a class="btn btn--ghost" href={repo}>View the repo</a>
+      </div>
+      <div class="badges">
+        <span class="badge">Azure</span>
+        <span class="badge">AKS</span>
+        <span class="badge">Terraform</span>
+        <span class="badge">Helm</span>
+        <span class="badge">GitHub Actions</span>
+        <span class="badge">EU / GDPR</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- (2) This site is the proof -->
+  <Section id="proof" eyebrow="Not a slide deck" title="This site is the proof">
+    <p class="lead">
+      You're looking at it. The always-on front you're reading is served from
+      <strong>Azure Static Web Apps</strong>. The <em>same</em> container image —
+      one Astro static build, served by nginx — is deployed on demand to a real,
+      private <strong>AKS</strong> cluster via Helm. The whole thing is in this
+      public repo, and the build pipeline is the architecture.
+    </p>
+    <ul class="notes">
+      <li>
+        Identical artifact, two delivery paths: SWA for always-on, AKS for the
+        live cluster proof at <code>aks.newcode.msulawiak.pl</code>.
+      </li>
+      <li>
+        <strong>Zero inbound ports.</strong> The AKS API server is private; CI
+        reaches it over Tailscale, and app traffic arrives through an
+        outbound-only Cloudflare Tunnel. Nothing is exposed to the internet.
+      </li>
+      <li>
+        Helm releases run from GitHub Actions against the private API — no
+        public kube endpoint, no bastion, no jump host.
+      </li>
+      <li>
+        Evidence — render logs, kubectl output, signatures — lives in
+        <a href={`${repo}/tree/main/docs/evidence`}>docs/evidence</a>.
+      </li>
+    </ul>
+    <div class="cta-row" style="margin-top:1.5rem">
+      <a class="btn btn--ghost" href={repo}>Source on GitHub</a>
+      <a class="btn btn--ghost" href={`${repo}/tree/main/docs`}>Architecture docs</a>
+    </div>
+  </Section>
+
+  <!-- (3) JD-to-evidence mapping -->
+  <Section
+    id="evidence"
+    eyebrow="Newcode.ai job requirements"
+    title="Every requirement, mapped to working code"
+  >
+    <p class="lead" style="margin-bottom:1.5rem">
+      No claims without a file. Each line below links to the exact artifact in
+      this repo that backs it.
+    </p>
+    <EvidenceTable />
+  </Section>
+
+  <!-- (3b) Track record -->
+  <Section
+    id="background"
+    eyebrow="15+ years in production infrastructure"
+    title="Track record"
+  >
+    <ul class="notes">
+      <li>
+        <strong>AI Delivery Lead, Sky.</strong> Led delivery of a governed, multi-tenant agentic-AI
+        platform — security gateway, sandboxed agent runtime, approval-aware tool registry and RAG —
+        across Azure, AWS and GCP, and industrialised AI across the software-delivery lifecycle.
+        <span class="plain">A company can put AI agents to real work safely — with approvals, an audit trail and cost control built in, not bolted on later.</span>
+      </li>
+      <li>
+        <strong>Senior Azure Architect &amp; DevOps, PwC.</strong> Built and optimised Azure DevOps
+        CI/CD with FinOps and on-demand AKS, pipeline templates and automated secret rotation; audited
+        an enterprise platform on AKS / Terraform / GitOps; led Microsoft-stack upskilling for a large
+        engineering group.
+        <span class="plain">Software ships faster and cheaper, breaks less often, and the team can keep it that way.</span>
+      </li>
+      <li>
+        <strong>Lead Azure Architect &amp; DevOps, Lingaro.</strong> Azure DevOps + Terraform CI/CD,
+        AKS and Ansible at scale — high-availability clusters and fast, repeatable deployments.
+        <span class="plain">Systems that stay online and roll out updates in minutes instead of days.</span>
+      </li>
+      <li>
+        Earlier: infrastructure architecture and systems administration across many SMEs
+        (Linux/Windows, virtualization, DR). MSc Robotics.
+        <strong>Microsoft Certified: Azure Solutions Architect Expert.</strong>
+        <span class="plain">Years of keeping real business systems running, fast and recoverable.</span>
+      </li>
+    </ul>
+  </Section>
+
+  <!-- (3c) Independent delivery -->
+  <Section
+    id="independent"
+    eyebrow="A dozen-plus smaller companies"
+    title="Independent delivery"
+  >
+    <p class="lead" style="margin-bottom:1.25rem">
+      Alongside contracting, I've delivered automation and platform work for a dozen-plus smaller
+      companies — software houses, businesses automating their operations, IT product teams, and my
+      own back office. A few representative builds:
+    </p>
+    <ul class="notes">
+      <li>
+        <strong>Multi-agent AI delivery platform</strong> — an orchestrator spawning ephemeral agent
+        containers, with all side-effects routed through an authenticated, audited gateway (per-caller
+        allow-lists, network-isolated egress); plus a GitHub-driven agent crew (Planner / Developer /
+        Reviewer) that runs Issue → PR → merge.
+        <span class="plain">Routine coding and ops get done by AI on their own — with a human signing off the important moves.</span>
+      </li>
+      <li>
+        <strong>AI product stack</strong> — chatbot, RAG connectors, MCP integrations and a Teams-RAG
+        assistant, packaged for repeatable deployment.
+        <span class="plain">A company can ask its own documents and data questions and get straight answers, instead of digging by hand.</span>
+      </li>
+      <li>
+        <strong>GPU inference service</strong> — audio/video transcription with speaker diarization
+        (Whisper / NeMo), GPU images built and shipped through GitHub Actions.
+        <span class="plain">Hours of audio and video turn into accurate, speaker-labelled text automatically.</span>
+      </li>
+      <li>
+        <strong>Bare-metal GPU server, deployed and AI-operated end to end</strong> — a dual-Blackwell
+        box (2× RTX 6000 Pro / 192 GB VRAM, 64-core Threadripper, ECC RAM, ZFS NVMe) on Proxmox with
+        VFIO GPU passthrough, NVIDIA / CUDA and a container GPU runtime, Tailscale-only access and
+        Cloudflare-Tunnel ingress — provisioned by Ansible + GitHub Actions and managed through an AI
+        ops workflow.
+        <span class="plain">A company's own private AI supercomputer — powerful, fully under its control, and kept running for it.</span>
+      </li>
+      <li>
+        <strong>Product apps with full CI/CD</strong> — e.g. an OCR-based invoicing/accounting app
+        (Next.js, PostgreSQL, object storage, job queue) on a containerized deploy pipeline.
+        <span class="plain">Boring paperwork — like reading and filing invoices — handled automatically.</span>
+      </li>
+      <li>
+        <strong>Infrastructure tooling</strong> — GitOps VM-fleet automation (Ansible + GitHub Actions
+        over Tailscale) and a Terraform-managed edge (Cloudflare DNS / WAF / origin certs / Zero-Trust
+        tunnels in front of an NGINX reverse proxy).
+        <span class="plain">New servers and websites go live safely in minutes, with nothing done by hand.</span>
+      </li>
+    </ul>
+  </Section>
+
+  <!-- (4) Security posture -->
+  <Section
+    id="security"
+    eyebrow="Built for confidential client data"
+    title="Zero secrets in a public repo"
+  >
+    <div class="grid">
+      <div class="card">
+        <h3>OIDC, not stored keys</h3>
+        <p>
+          Azure auth uses GitHub workload-identity federation. No service-principal
+          secrets exist anywhere in the repo or CI.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Key Vault + CSI</h3>
+        <p>
+          In-cluster secrets (e.g. the tunnel token) flow from Azure Key Vault via
+          the Secrets Store CSI Driver and Workload Identity — never committed.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Secret scanning as a gate</h3>
+        <p>
+          gitleaks runs pre-commit and in CI. A leaked value fails the build,
+          not production.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Signed, scanned images</h3>
+        <p>
+          Trivy blocks HIGH/CRITICAL CVEs; cosign keyless signs every image and
+          deploys verify the signature.
+        </p>
+      </div>
+    </div>
+    <div class="cta-row" style="margin-top:1.5rem">
+      <a class="btn btn--ghost" href={`${repo}/blob/main/SECURITY.md`}>Read SECURITY.md</a>
+    </div>
+  </Section>
+
+  <!-- (5) Contact / CTA -->
+  <Section id="contact" eyebrow="Engagement" title="Let's talk">
+    <p class="lead">
+      From an empty subscription to a signed, monitored, multi-tenant AKS
+      platform — built, deployed and observed by the pipelines in this repo. If
+      that's the kind of infrastructure you need, let's talk.
+    </p>
+    <ul class="notes" style="margin-bottom:1.5rem">
+      <li>LinkedIn: <a href="https://www.linkedin.com/in/michal-sulawiak">michal-sulawiak</a></li>
+      <li>Code: <a href={repo}>{repo.replace('https://', '')}</a></li>
+    </ul>
+    <div class="cta-row">
+      <a class="btn btn--primary" href={repo}>
+        Browse the full repo
+      </a>
+    </div>
+  </Section>
+
+  <footer class="site">
+    <div class="wrap">
+      <span>
+        Built and operated by Michał Sulawiak — the infrastructure
+        is the CV.
+      </span>
+      <span class="mono">newcode.msulawiak.pl</span>
+    </div>
+  </footer>
+</Layout>
