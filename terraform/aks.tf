@@ -28,6 +28,17 @@ resource "azurerm_kubernetes_cluster" "aks" {
     type = "SystemAssigned"
   }
 
+  # Network policy ENGINE. Without this, Kubernetes NetworkPolicy objects are
+  # accepted by the API server but never enforced — the chart's default-deny and
+  # tenant-isolation policies would be inert. Azure CNI Overlay + the Cilium data
+  # plane enforces them (and is the current AKS-recommended dataplane).
+  network_profile {
+    network_plugin      = "azure"
+    network_plugin_mode = "overlay"
+    network_policy      = "cilium"
+    network_data_plane  = "cilium"
+  }
+
   # Azure RBAC for Kubernetes authz — RBAC Cluster Admin role drives kubectl access.
   role_based_access_control_enabled = true
   azure_active_directory_role_based_access_control {

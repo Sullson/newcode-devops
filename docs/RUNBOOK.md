@@ -31,14 +31,18 @@ git --version
 
 ---
 
-## 1. Fill in your personal facts (the `{{TODO}}` markers)
+## 1. Confirm the personal facts (no placeholders left)
+
+The CV ships filled in with real facts — there are **no `{{TODO}}` placeholders to replace**. Before
+going public, confirm none slipped into the content files (this should print nothing — `CLAUDE.md` and
+`SECURITY.md` only *describe* the marker convention, so scope the check to where facts actually live):
 
 ```bash
-grep -rn "{{TODO" . | grep -v node_modules
+grep -rn "{{TODO" app/src README.md LICENSE SLO.md    # expect: no output
 ```
 
-Replace each (real name, contact email, Calendly/LinkedIn, years of Azure/K8s, alert channel) in:
-`app/src/pages/index.astro`, `README.md`, `CLAUDE.md`, `LICENSE`, `SLO.md`.
+If you're **forking this for your own CV**, swap the personal facts (name, contact, Calendly/LinkedIn,
+years of Azure/K8s, alert channel) in `app/src/pages/index.astro`, `README.md`, `LICENSE`, `SLO.md`.
 These are content only — none are secrets.
 
 Sanity-check the site still builds:
@@ -232,7 +236,9 @@ workflow). The cluster + Grafana are gone; the front stays up.
   **Security → Code scanning**.
 - **Tear everything down for good** (only if you truly want it gone):
   `terraform -chdir=terraform destroy` — removes the persistent infra too. The state storage RG
-  (`rg-newcode-cv` was reused) and tfstate remain unless you delete them manually.
+  (`rg-newcode-cv` was reused) and tfstate remain unless you delete them manually. If you ran with
+  `kv_purge_protection=true`, the Key Vault stays soft-deleted (name reserved, un-purgeable) for
+  `soft_delete_retention_days` — recreating `kv-newcode-cv` must wait out that window.
 
 ---
 

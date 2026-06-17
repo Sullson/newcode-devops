@@ -49,6 +49,12 @@ variable "deploy_aks" {
   default     = false
 }
 
+variable "kv_purge_protection" {
+  description = "Key Vault purge protection. Production: true (anti-ransomware / anti-accidental-delete). Default false for the ephemeral demo because it is irreversible and would lock the vault name for the soft-delete retention window after a teardown."
+  type        = bool
+  default     = false
+}
+
 variable "node_count" {
   description = "System node pool size. One node is enough for this demo cluster."
   type        = number

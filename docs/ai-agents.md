@@ -35,16 +35,20 @@ Properties that make it credible rather than a gimmick:
 ## Nightly AI security review
 
 A scheduled job that pairs **deterministic scanning** with **LLM triage** so the model adds judgment,
-not noise:
+not noise. **Live in this repo today is the deterministic half** (scan → dedup → one rolling Issue); the
+**LLM-triage step is the methodology as it runs on the separate SDLC platform** — there is no model call
+in `security-nightly.yml`. See [What is live here](#what-is-live-here-vs-the-full-platform).
 
-1. **Deterministic pass** (the facts): run SAST + dependency/secret/image scanning on the current
-   `main` — Trivy, gitleaks, dependency review. Pure tools, reproducible, no model.
-2. **LLM triage** (the judgment): feed the raw findings to an LLM that deduplicates, ranks by real
-   exploitability *in this repo's context*, drops false positives, and explains the *why* + a concrete
-   remediation. The model never *invents* a vulnerability — it only triages what the deterministic pass
-   surfaced.
-3. **Output = a GitHub Issue**: a single, prioritized, human-readable security Issue (or none if clean),
-   labeled for the SDLC crew (`state:plan`) so a real fix can flow through the same pipeline.
+1. **Deterministic pass — wired live** (the facts): dependency/secret/IaC scanning on the current
+   `main` — **osv-scanner** (deps), **gitleaks** (secrets), **Trivy config** (IaC: `terraform/`,
+   `helm/`). Pure tools, reproducible, no model.
+2. **LLM triage — on the platform, not in this repo** (the judgment): feed the raw findings to an LLM
+   that deduplicates, ranks by real exploitability *in this repo's context*, drops false positives, and
+   explains the *why* + a concrete remediation. The model never *invents* a vulnerability — it only
+   triages what the deterministic pass surfaced.
+3. **Output = a GitHub Issue**: the live slice folds the findings into a **single rolling `security`
+   Issue** (upserted nightly, auto-closed when clean); on the platform that Issue is additionally
+   labeled for the SDLC crew (`state:plan`) so a real fix flows through the same pipeline.
 
 Why this split: deterministic tools are trustworthy but verbose and context-blind; an LLM is great at
 context and prioritization but must not be the source of truth for *whether* something is a finding. The
@@ -55,10 +59,14 @@ LLM triages; the scanners detect.
 ## What is live here vs the full platform
 
 **Wired live in this repo:**
-- `.github/workflows/security-nightly.yml` — the deterministic-scan → LLM-triage → Issue flow above.
+- `.github/workflows/security-nightly.yml` — the **deterministic-scan → dedup → single rolling Issue**
+  flow (osv-scanner + gitleaks + Trivy config). The LLM-triage layer above runs on the separate
+  platform, not in this workflow.
 - **Renovate** (`dependencyDashboardApproval: true`) — dependency intelligence with human approval.
-- The repo conventions the agents enforce (minimal, facts-only, zero-secrets, SHA-pinned actions) are
-  real and gated in CI.
+- The repo conventions the agents enforce are real, and the *deterministic* ones are CI-gated:
+  **zero-secrets** (gitleaks, pre-commit + CI) and **IaC/image hygiene** (Trivy). Action pinning is
+  policy + Renovate digest-pinning (`renovate.json`), not a CI gate; "minimal" and "facts-only" are
+  review conventions, not machine-checked.
 
 **Separate platform (not in this repo):**
 - The full 6-role crew runs on a separate multi-agent SDLC platform I built and operate. This repo

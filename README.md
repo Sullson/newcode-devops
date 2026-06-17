@@ -106,7 +106,12 @@ tenant-ids, or subscription-ids. How that holds:
 - In-cluster secrets via **Azure Key Vault + Secrets Store CSI Driver + Workload Identity** (`id-cv-app`).
 - All other CI secrets referenced only as `${{ secrets.NAME }}`.
 - **gitleaks** runs as a pre-commit hook *and* as a CI gate.
-- All GitHub Actions are **pinned by commit SHA**; supply chain is scanned (Trivy) and images **signed with cosign** (keyless/Sigstore).
+- The two highest-leverage actions — `actions/checkout` (runs first in *every* job) and
+  `hashicorp/setup-terraform` (the Azure-OIDC / infra-state jobs) — are **pinned by commit SHA**. The
+  rest are pinned to **release tags** (never floating `@main`/latest), each marked `# TODO: ratchet to
+  SHA`, and **Renovate `pinDigests: true`** (`renovate.json`) opens PRs to convert them to digests. That
+  hard-pins the widest-blast-radius and most-privileged actions now, and ratchets the remainder.
+- Supply chain is scanned (Trivy) and images **signed with cosign** (keyless/Sigstore).
 
 Full threat model and posture: [`SECURITY.md`](SECURITY.md).
 
@@ -158,7 +163,7 @@ GitHub Actions + microservices + IaC**. This repo demonstrates each, against con
 - **Helm + microservices**: parameterized chart with HPA, PDB, ServiceMonitor, NetworkPolicy.
 - **Security for confidential client data**: zero-secret public repo, OIDC, Key Vault + CSI + workload
   identity, zero inbound ports, tenant isolation (`tenant-a`/`tenant-b` namespaces, default-deny NetworkPolicy).
-- **Supply chain**: Trivy, cosign keyless signing + verify, SHA-pinned actions, Renovate, dependency-review.
+- **Supply chain**: Trivy, cosign keyless signing + verify, SHA-pinned + Renovate-digest-pinned actions, Renovate, dependency-review.
 - **Agentic-AI fluency**: an AI-assisted SDLC with a 6-role GitHub agent crew and a nightly AI security
   review — see [`docs/ai-agents.md`](docs/ai-agents.md).
 

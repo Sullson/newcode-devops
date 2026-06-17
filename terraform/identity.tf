@@ -46,12 +46,11 @@ resource "azurerm_role_assignment" "gh_aks_admin" {
   principal_id         = azurerm_user_assigned_identity.gh_oidc.principal_id
 }
 
-# Key Vault Administrator scoped to the vault only (write tunnel token at deploy).
-resource "azurerm_role_assignment" "gh_kv_admin" {
-  scope                = azurerm_key_vault.kv.id
-  role_definition_name = "Key Vault Administrator"
-  principal_id         = azurerm_user_assigned_identity.gh_oidc.principal_id
-}
+# NOTE: the CI identity's Key Vault data-plane access (writing the tunnel token at
+# deploy) is granted by `kv_secrets_officer_deployer` in keyvault.tf via the
+# *current caller* (which IS this gh_oidc MI in CI). A separate Key Vault
+# Administrator grant here would (a) over-privilege the CI identity and (b) create
+# a duplicate role assignment that collides with that one on CI applies.
 
 # --- App workload identity: federated to the AKS OIDC issuer, reads Key Vault ---
 resource "azurerm_user_assigned_identity" "cv_app" {

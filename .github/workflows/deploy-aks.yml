@@ -110,16 +110,11 @@ jobs:
           TS_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
           OPERATOR_HOST: ${{ steps.tf.outputs.operator_host }}
         run: |
-          az aks command invoke -g "$RG" -n "$AKS" --command "
-            helm repo add tailscale https://pkgs.tailscale.com/helmcharts &&
-            helm repo update &&
-            helm upgrade --install tailscale-operator tailscale/tailscale-operator
-              --namespace tailscale --create-namespace
-              --set-string oauth.clientId=$TS_ID
-              --set-string oauth.clientSecret=$TS_SECRET
-              --set apiServerProxyConfig.mode=true
-              --set-string operatorConfig.hostname=$OPERATOR_HOST
-              --wait --timeout 5m"
+          # Single line: `az aks command invoke --command` runs the string in a
+          # server-side `sh -c`, where a bare newline ENDS the command. The three
+          # helm calls are chained with `&&`; the upgrade flags stay on one line so
+          # none are orphaned. Do not re-wrap this onto multiple lines.
+          az aks command invoke -g "$RG" -n "$AKS" --command "helm repo add tailscale https://pkgs.tailscale.com/helmcharts && helm repo update && helm upgrade --install tailscale-operator tailscale/tailscale-operator --namespace tailscale --create-namespace --set-string oauth.clientId=$TS_ID --set-string oauth.clientSecret=$TS_SECRET --set apiServerProxyConfig.mode=true --set-string operatorConfig.hostname=$OPERATOR_HOST --wait --timeout 5m"
 
       # Join the tailnet so kubectl/helm can reach the PRIVATE AKS API through
       # the operator's API-server proxy. Zero inbound ports on the cluster.
