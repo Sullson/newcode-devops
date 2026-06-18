@@ -51,7 +51,7 @@ resource "cloudflare_dns_record" "aks" {
   content = "${cloudflare_zero_trust_tunnel_cloudflared.cv.id}.cfargotunnel.com"
   proxied = true
   ttl     = 1 # 1 = automatic; required when proxied.
-  comment = "CF Tunnel: cv (AKS proof)"
+  comment = "CF Tunnel: cv (AKS proof); managed by newcode-devops repo"
 }
 
 # Live metrics dashboard (in-cluster Grafana) -> same tunnel. Only resolves while
@@ -63,7 +63,7 @@ resource "cloudflare_dns_record" "grafana" {
   content = "${cloudflare_zero_trust_tunnel_cloudflared.cv.id}.cfargotunnel.com"
   proxied = true
   ttl     = 1
-  comment = "CF Tunnel: cv (Grafana live dashboard)"
+  comment = "CF Tunnel: cv (Grafana live dashboard); managed by newcode-devops repo"
 }
 
 # Always-on front -> Azure Static Web App. Proxied so it sits behind Cloudflare too.
@@ -72,9 +72,11 @@ resource "cloudflare_dns_record" "front" {
   name    = "newcode.${var.cloudflare_zone}"
   type    = "CNAME"
   content = azurerm_static_web_app.swa.default_host_name
-  proxied = true
+  # DNS-only (grey cloud): SWA validates this CNAME and terminates TLS itself for
+  # the custom domain. Proxying hides the CNAME and breaks SWA validation -> 526.
+  proxied = false
   ttl     = 1
-  comment = "Azure Static Web App front"
+  comment = "Azure Static Web App front; managed by newcode-devops repo"
 }
 
 # v5: tunnel token is fetched via data source (no read-only attr on the resource).
