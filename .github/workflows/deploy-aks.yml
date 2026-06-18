@@ -155,7 +155,7 @@ jobs:
         run: |
           az acr login --name acrnewcodecv
           cosign verify "$ACR_LOGIN_SERVER/$IMAGE_NAME:latest" \
-            --certificate-identity-regexp "https://github.com/sullson/newcode-devops/.*" \
+            --certificate-identity-regexp "(?i)https://github.com/sullson/newcode-devops/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             | tee /tmp/cosign-verify.txt
 
