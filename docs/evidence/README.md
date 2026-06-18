@@ -1,7 +1,7 @@
 # Evidence
 
 This directory holds **timestamped proof that the on-demand AKS deploy really works**. The cluster is
-not running 24/7 (see the cost rationale in [../architecture.md](../architecture.md)) — so instead of a
+not running 24/7 (see the cost rationale in [../architecture.md](../architecture.md)) - so instead of a
 live link, the proof of a real deploy is captured here and committed.
 
 ## What lands here
@@ -21,7 +21,7 @@ append-only audit trail. Each file contains:
 | `kubectl get pods,svc -n cv` | workloads scheduled and healthy |
 | `helm status cv-site` | the release deployed successfully |
 
-The cluster teardown runs in the workflow's final `always()` step, after the proof is committed — so it
+The cluster teardown runs in the workflow's final `always()` step, after the proof is committed - so it
 executes on every run (success or failure) and is visible in the run logs. It is **not** a full
 `terraform destroy`: it is `terraform apply -var deploy_aks=false`, which removes only the ephemeral AKS
 cluster and its cluster-bound dependents. The always-on front (SWA, DNS, ACR, Key Vault, identities,
@@ -29,7 +29,7 @@ monitoring, the Cloudflare tunnel) is persistent and is deliberately left runnin
 
 ## Why evidence instead of a permanent link
 
-- The **always-on** CV lives at `newcode.msulawiak.pl` (Azure Static Web Apps, free tier) — that is the
+- The **always-on** CV lives at `newcode.msulawiak.pl` (Azure Static Web Apps, free tier) - that is the
   durable surface.
 - The **AKS** path exists to prove the full platform end-to-end, not to serve traffic. Running it idle
   would cost money and keep infrastructure standing for no reason. The captured evidence + clean teardown

@@ -3,15 +3,15 @@
 **Senior DevOps for production AI infrastructure.**
 
 An Azure + AKS + Terraform + Helm + GitHub Actions stack that builds, signs, deploys and observes a real
-site, with zero inbound ports on the cluster and no secret values in a public repo. The site it serves
-is my CV, and it's deployed by the pipelines in this repo.
+site. The cluster is outbound-only and no secret values live in the repo. The site it serves is my CV,
+and it's deployed by the pipelines in this repo.
 
 ---
 
 ## ▶ See it running
 
-The full private-AKS platform runs on weekdays in four 45-minute windows — **10:00, 12:00, 14:00 and
-16:00 (Europe/Warsaw)** — then tears itself down. During a window, from any browser, no login:
+The full private-AKS platform runs on weekdays in four 45-minute windows - **10:00, 12:00, 14:00 and
+16:00 (Europe/Warsaw)** - then tears itself down. During a window, from any browser, no login:
 
 | | |
 |---|---|
@@ -41,12 +41,12 @@ flowchart LR
   oidc --> az[(Azure ARM)]
   tf --> az
 
-  subgraph AZ["Azure — rg-newcode-cv (swedencentral)"]
+  subgraph AZ["Azure - rg-newcode-cv (swedencentral)"]
     az --> acr[ACR acrnewcodecv]
     az --> kv[Key Vault kv-newcode-cv]
     az --> swa[Static Web App swa-newcode-cv]
 
-    subgraph K8S["AKS aks-newcode-cv — PRIVATE API server"]
+    subgraph K8S["AKS aks-newcode-cv - PRIVATE API server"]
       tsop[Tailscale Operator\nAPI-server proxy] --> api[(kube-apiserver)]
       cvsa[SA cv-site\nworkload identity] --> kv
       cf[cloudflared\noutbound tunnel]
@@ -79,16 +79,17 @@ uploads yet); everything on the AKS path is OIDC/keyless. Full walkthrough: [`do
 | [`docs/`](docs/) | [status](docs/STATUS.md) · [architecture](docs/architecture.md) · [runbook](docs/RUNBOOK.md) · [ai-agents](docs/ai-agents.md) · [evidence](docs/evidence/) |
 | [`SECURITY.md`](SECURITY.md) · [`SLO.md`](SLO.md) | Threat model & posture · service level |
 
-**Zero inbound ports**: private kube-apiserver (CI reaches it over Tailscale), app traffic via an
-outbound-only Cloudflare Tunnel — no LoadBalancer, Ingress or NodePort. **Zero secrets in the repo**:
-Azure via GitHub OIDC, in-cluster secrets via Key Vault + CSI + workload identity, gitleaks-gated. The
-details and the honest demo trade-offs are in [`SECURITY.md`](SECURITY.md).
+**Outbound-only networking**: the kube-apiserver is private (CI reaches it over Tailscale) and app
+traffic arrives through a Cloudflare Tunnel the cluster dials out itself, so nothing on it listens to
+the internet. **No secrets in the repo**: Azure via GitHub OIDC, in-cluster secrets via Key Vault + CSI
++ workload identity, gitleaks-gated. The details and the honest demo trade-offs are in
+[`SECURITY.md`](SECURITY.md).
 
 ---
 
 ## About
 
-**Michał Sulawiak** — Senior Cloud Architect & DevOps / SRE, independent contractor (Poland, remote).
+**Michał Sulawiak** - Senior Cloud Architect & DevOps / SRE, independent contractor (Poland, remote).
 15+ years in production infrastructure; 8+ on Azure, AKS and Terraform. Delivered a governed multi-tenant
 agentic-AI platform at **Sky**; Senior Azure Architect & DevOps at **PwC**; Lead Azure Architect & DevOps
 at **Lingaro**. **Microsoft Certified: Azure Solutions Architect Expert.**

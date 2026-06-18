@@ -15,7 +15,7 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
        the always-on Static Web Apps front. -->
   <div id="aks-ribbon" class="ribbon" hidden>
     <span class="ribbon__dot"></span>
-    You're on the live copy — served from AKS, node <span id="rb-node">…</span>
+    You're on the live copy - served from AKS, node <span id="rb-node">…</span>
   </div>
 
   <!-- (1) Hero -->
@@ -26,7 +26,7 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
       </h1>
       <p class="lead-deck">
         I build and run production Azure and AKS platforms. The site you're
-        reading is deployed by the same pipelines it documents — the code is all
+        reading is deployed by the same pipelines it documents - the code is all
         in this repo.
       </p>
 
@@ -38,8 +38,8 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
           <span id="live-label">Cluster offline</span>
         </p>
         <p class="live__text" id="live-text">
-          The full private-AKS platform — the app, the signed image, real
-          metrics — runs on weekdays in four 45-minute windows: 10:00, 12:00,
+          The full private-AKS platform - the app, the signed image, real
+          metrics - runs on weekdays in four 45-minute windows: 10:00, 12:00,
           14:00 and 16:00 (Europe/Warsaw). Outside those it's torn down, so it
           costs nothing when idle. Catch it in a window, or ask me and I'll bring
           it up.
@@ -48,11 +48,11 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
         <!-- Filled live from /proof.json (Downward API). Hidden until then. -->
         <div class="proof" id="proof-panel" aria-live="polite">
           <dl class="proof-grid">
-            <dt>node</dt><dd id="pf-node">—</dd>
-            <dt>pod</dt><dd id="pf-pod">—</dd>
-            <dt>namespace</dt><dd id="pf-ns">—</dd>
-            <dt>cluster API</dt><dd id="pf-api">—</dd>
-            <dt>image</dt><dd id="pf-digest">—</dd>
+            <dt>node</dt><dd id="pf-node">-</dd>
+            <dt>pod</dt><dd id="pf-pod">-</dd>
+            <dt>namespace</dt><dd id="pf-ns">-</dd>
+            <dt>cluster API</dt><dd id="pf-api">-</dd>
+            <dt>image</dt><dd id="pf-digest">-</dd>
           </dl>
         </div>
 
@@ -103,8 +103,8 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
           function render(p, servedHere) {
             live.classList.add("live--on");
             document.getElementById("live-label").textContent = servedHere
-              ? "Live — served from this AKS pod"
-              : "Live — the AKS cluster is up";
+              ? "Live - served from this AKS pod"
+              : "Live - the AKS cluster is up";
             document.getElementById("live-text").textContent = servedHere
               ? "You're on the cluster right now. These values come straight from this pod's Kubernetes Downward API, not from the page."
               : "The private-AKS cluster is up. The app and the metrics below are served straight from it, no login. Open the live app to land on the cluster itself.";
@@ -151,13 +151,13 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
         are both served from the cluster, no login.
       </li>
       <li>
-        No inbound ports. The AKS API server is private; CI reaches it over
-        Tailscale, and app traffic comes in through an outbound-only Cloudflare
-        Tunnel. There's no LoadBalancer, Ingress or NodePort to scan.
+        Ingress is outbound-only. The AKS API server is private (CI reaches it
+        over Tailscale), and app traffic arrives through a Cloudflare Tunnel the
+        cluster dials out itself, so nothing on it listens to the internet.
       </li>
       <li>
-        Every run writes its own proof — cosign verify and <code>kubectl</code>
-        output — to
+        Every run writes its own proof - cosign verify and <code>kubectl</code>
+        output - to
         <a href={`${repo}/tree/main/docs/evidence`} target="_blank" rel="noopener noreferrer">docs/evidence</a>.
       </li>
     </ul>
@@ -172,23 +172,23 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
     </div>
   </Section>
 
-  <!-- (3) Inside the platform — author-supplied screenshots (local assets only) -->
+  <!-- (3) Inside the platform - author-supplied screenshots (local assets only) -->
   <Section id="inside" eyebrow="Inside the platform" title="What it looks like running" class="section--warm">
     <p class="lead" style="margin-bottom:1.5rem">
       The cluster's own Grafana and the Azure resources behind it. Screenshots
-      are local assets — no remote images, so the page still makes zero external
+      are local assets - no remote images, so the page still makes zero external
       requests.
     </p>
     <div class="grid">
       <figure class="shot" style="margin:0">
         <figcaption>
-          Azure portal — rg-newcode-cv
+          Azure portal - rg-newcode-cv
           <span class="todo">{'{{TODO: drop app/public/shots/azure-rg.png}}'}</span>
         </figcaption>
       </figure>
       <figure class="shot" style="margin:0">
         <figcaption>
-          In-cluster Grafana — RED dashboard
+          In-cluster Grafana - RED dashboard
           <span class="todo">{'{{TODO: drop app/public/shots/grafana-red.png}}'}</span>
         </figcaption>
       </figure>
@@ -217,8 +217,8 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
     <ul class="notes">
       <li>
         <strong>AI Delivery Lead, Sky.</strong> Led delivery of a governed,
-        multi-tenant agentic-AI platform — security gateway, sandboxed agent
-        runtime, approval-aware tool registry and RAG — across Azure, AWS and
+        multi-tenant agentic-AI platform - security gateway, sandboxed agent
+        runtime, approval-aware tool registry and RAG - across Azure, AWS and
         GCP, and industrialised AI across the software-delivery lifecycle.
       </li>
       <li>
@@ -230,7 +230,7 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
       </li>
       <li>
         <strong>Lead Azure Architect &amp; DevOps, Lingaro.</strong> Azure
-        DevOps + Terraform CI/CD, AKS and Ansible at scale — high-availability
+        DevOps + Terraform CI/CD, AKS and Ansible at scale - high-availability
         clusters and repeatable deployments.
       </li>
       <li>
@@ -249,42 +249,42 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
   >
     <p class="lead" style="margin-bottom:1.25rem">
       Alongside contracting, I've delivered automation and platform work for a
-      dozen-plus smaller companies — software houses, businesses automating their
+      dozen-plus smaller companies - software houses, businesses automating their
       operations, IT product teams, and my own back office. A few of them:
     </p>
     <ul class="notes">
       <li>
-        <strong>Multi-agent AI delivery platform</strong> — an orchestrator
+        <strong>Multi-agent AI delivery platform</strong> - an orchestrator
         spawning ephemeral agent containers, with all side-effects routed through
         an authenticated, audited gateway (per-caller allow-lists,
         network-isolated egress); plus a GitHub-driven agent crew (Planner /
         Developer / Reviewer) that runs Issue → PR → merge.
       </li>
       <li>
-        <strong>AI product stack</strong> — chatbot, RAG connectors, MCP
+        <strong>AI product stack</strong> - chatbot, RAG connectors, MCP
         integrations and a Teams-RAG assistant, packaged for repeatable
         deployment.
       </li>
       <li>
-        <strong>GPU inference service</strong> — audio/video transcription with
+        <strong>GPU inference service</strong> - audio/video transcription with
         speaker diarization (Whisper / NeMo), GPU images built and shipped
         through GitHub Actions.
       </li>
       <li>
         <strong>Bare-metal GPU server, deployed and AI-operated end to end</strong>
-        — a dual-Blackwell box (2× RTX 6000 Pro / 192 GB VRAM, 64-core
+        - a dual-Blackwell box (2× RTX 6000 Pro / 192 GB VRAM, 64-core
         Threadripper, ECC RAM, ZFS NVMe) on Proxmox with VFIO GPU passthrough,
         NVIDIA / CUDA and a container GPU runtime, Tailscale-only access and
-        Cloudflare-Tunnel ingress — provisioned by Ansible + GitHub Actions and
+        Cloudflare-Tunnel ingress - provisioned by Ansible + GitHub Actions and
         managed through an AI ops workflow.
       </li>
       <li>
-        <strong>Product apps with full CI/CD</strong> — e.g. an OCR-based
+        <strong>Product apps with full CI/CD</strong> - e.g. an OCR-based
         invoicing/accounting app (Next.js, PostgreSQL, object storage, job queue)
         on a containerized deploy pipeline.
       </li>
       <li>
-        <strong>Infrastructure tooling</strong> — GitOps VM-fleet automation
+        <strong>Infrastructure tooling</strong> - GitOps VM-fleet automation
         (Ansible + GitHub Actions over Tailscale) and a Terraform-managed edge
         (Cloudflare DNS / WAF / origin certs / Zero-Trust tunnels in front of an
         NGINX reverse proxy).
@@ -337,7 +337,7 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
   <!-- (8) Contact -->
   <Section id="contact" eyebrow="Engagement" title="Get in touch">
     <p class="lead">
-      This whole platform — AKS, signing, monitoring, tenant isolation — is built
+      This whole platform - AKS, signing, monitoring, tenant isolation - is built
       and run by the pipelines in this repo, starting from an empty Azure
       subscription. If that's what you're hiring for, get in touch.
     </p>

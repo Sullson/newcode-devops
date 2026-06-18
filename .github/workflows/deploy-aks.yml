@@ -2,14 +2,14 @@ name: deploy-aks
 
 # The on-demand AKS proof, run as recurring LIVE WINDOWS so anyone can open a
 # browser and see the whole platform working:
-#   * up   — stand up the PRIVATE-API cluster, deploy cv-site + in-cluster
+#   * up   - stand up the PRIVATE-API cluster, deploy cv-site + in-cluster
 #            Grafana, verify the signed image, record evidence. Leaves it RUNNING.
-#   * down — tear the ephemeral cluster back down (cost control).
+#   * down - tear the ephemeral cluster back down (cost control).
 #
-# Schedule: four 45-minute windows on weekdays — up at 10:00 / 12:00 / 14:00 /
+# Schedule: four 45-minute windows on weekdays - up at 10:00 / 12:00 / 14:00 /
 # 16:00, each torn down 45 min later. GitHub cron is UTC with no DST, so these
 # are pinned to CEST (summer, UTC+2); in winter (CET, UTC+1) the windows land an
-# hour earlier in local time — adjust the crons if that matters. Each `up` builds
+# hour earlier in local time - adjust the crons if that matters. Each `up` builds
 # the cluster from scratch (~15 min before it serves), so the live-serving slice
 # of each window is ~30 min.
 #
@@ -26,8 +26,8 @@ on:
         options: [up, down]
         default: up
   schedule:
-    - cron: "0 8,10,12,14 * * 1-5"  # up   — 10/12/14/16 CEST (weekdays)
-    - cron: "45 8,10,12,14 * * 1-5" # down — 45 min after each up
+    - cron: "0 8,10,12,14 * * 1-5"  # up   - 10/12/14/16 CEST (weekdays)
+    - cron: "45 8,10,12,14 * * 1-5" # down - 45 min after each up
 
 permissions:
   contents: read
@@ -130,7 +130,7 @@ jobs:
       # API runs the helm install server-side over its authenticated control-plane
       # channel (still no public API exposure). We call the REST API directly instead
       # of `az aks command invoke`: that CLI wrapper's long-running-operation poller
-      # is broken across az versions — it reports "Operation returned an invalid status
+      # is broken across az versions - it reports "Operation returned an invalid status
       # 'OK'/'Not Found'" and swallows the real result (e.g. a pod scheduling failure),
       # whereas commandResults.reason/logs below surface exactly what happened.
       - name: Bootstrap Tailscale operator (private cluster, via runCommand REST)
@@ -274,7 +274,7 @@ jobs:
           ts=$(date -u +%Y-%m-%dT%H-%M-%SZ)
           out="docs/evidence/aks-proof-${ts}.md"
           {
-            echo "# AKS proof — ${ts}"
+            echo "# AKS proof - ${ts}"
             echo
             echo "- Commit: \`${GITHUB_SHA}\` (image tag \`latest\`)"
             echo "- App URL: ${APP_URL}  (/healthz HTTP \`${{ steps.smoke.outputs.status }}\`)"

@@ -1,4 +1,4 @@
-# AI agents — SDLC crew & nightly AI security review
+# AI agents - SDLC crew & nightly AI security review
 
 This is the **lite** showcase of an AI-agent-driven SDLC, adapted for this repo. It is direct evidence
 of AI-agent experience for an agentic-AI employer. It is also honest about scope: see
@@ -8,7 +8,7 @@ of AI-agent experience for an agentic-AI employer. It is also honest about scope
 
 ## The 6-role GitHub SDLC agent crew
 
-A small crew of single-purpose agents drives work through GitHub, using **labels as a state machine** —
+A small crew of single-purpose agents drives work through GitHub, using **labels as a state machine** -
 the issue/PR label *is* the state, so there is no hidden orchestration state and every transition is
 auditable in the GitHub timeline.
 
@@ -18,7 +18,7 @@ auditable in the GitHub timeline.
 | **Coder** | `state:code` | Implement the plan on a branch, open a PR | Reviewer |
 | **Reviewer** | PR labeled `state:review` | Review diff for correctness + the repo conventions (minimal, facts-only, zero-secrets, SHA-pins) | Fix or Closer |
 | **Fix** | `state:fix` | Apply review findings / fix failing checks | Reviewer (re-review) |
-| **Closer** | `state:done` | Merge when green + approved, tidy up, write the manifest/changelog entry | — |
+| **Closer** | `state:done` | Merge when green + approved, tidy up, write the manifest/changelog entry | - |
 | **CI-poke** | checks stuck/failed | Nudge or re-run CI, surface the failure back as `state:fix` | Fix |
 
 Why this holds up:
@@ -36,15 +36,15 @@ Why this holds up:
 
 A scheduled job that pairs **deterministic scanning** with **LLM triage** so the model adds judgment,
 not noise. **Live in this repo today is the deterministic half** (scan → dedup → one rolling Issue); the
-**LLM-triage step is the methodology as it runs on the separate SDLC platform** — there is no model call
+**LLM-triage step is the methodology as it runs on the separate SDLC platform** - there is no model call
 in `security-nightly.yml`. See [What is live here](#what-is-live-here-vs-the-full-platform).
 
-1. **Deterministic pass — wired live** (the facts): dependency/secret/IaC scanning on the current
-   `main` — **osv-scanner** (deps), **gitleaks** (secrets), **Trivy config** (IaC: `terraform/`,
+1. **Deterministic pass - wired live** (the facts): dependency/secret/IaC scanning on the current
+   `main` - **osv-scanner** (deps), **gitleaks** (secrets), **Trivy config** (IaC: `terraform/`,
    `helm/`). Pure tools, reproducible, no model.
-2. **LLM triage — on the platform, not in this repo** (the judgment): feed the raw findings to an LLM
+2. **LLM triage - on the platform, not in this repo** (the judgment): feed the raw findings to an LLM
    that deduplicates, ranks by real exploitability *in this repo's context*, drops false positives, and
-   explains the *why* + a concrete remediation. The model never *invents* a vulnerability — it only
+   explains the *why* + a concrete remediation. The model never *invents* a vulnerability - it only
    triages what the deterministic pass surfaced.
 3. **Output = a GitHub Issue**: the live slice folds the findings into a **single rolling `security`
    Issue** (upserted nightly, auto-closed when clean); on the platform that Issue is additionally
@@ -59,10 +59,10 @@ LLM triages; the scanners detect.
 ## What is live here vs the full platform
 
 **Wired live in this repo:**
-- `.github/workflows/security-nightly.yml` — the **deterministic-scan → dedup → single rolling Issue**
+- `.github/workflows/security-nightly.yml` - the **deterministic-scan → dedup → single rolling Issue**
   flow (osv-scanner + gitleaks + Trivy config). The LLM-triage layer above runs on the separate
   platform, not in this workflow.
-- **Renovate** (`dependencyDashboardApproval: true`) — dependency intelligence with human approval.
+- **Renovate** (`dependencyDashboardApproval: true`) - dependency intelligence with human approval.
 - The repo conventions the agents enforce are real, and the *deterministic* ones are CI-gated:
   **zero-secrets** (gitleaks, pre-commit + CI) and **IaC/image hygiene** (Trivy). Action pinning is
   policy + Renovate digest-pinning (`renovate.json`), not a CI gate; "minimal" and "facts-only" are
