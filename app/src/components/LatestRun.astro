@@ -47,7 +47,7 @@ if (dir) {
   try {
     const files = fs
       .readdirSync(dir)
-      .filter((f) => /^aks-proof-.*\.md$/.test(f))
+      .filter((f: string) => /^aks-proof-.*\.md$/.test(f))
       .sort()
       .reverse();
     if (files.length) {
