@@ -101,7 +101,7 @@ jobs:
       - name: Trivy scan (gate + SARIF)
         # One scan: writes SARIF AND exits 1 on HIGH/CRITICAL so it still gates.
         # TODO: ratchet to SHA (Renovate)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha }}
           severity: HIGH,CRITICAL
