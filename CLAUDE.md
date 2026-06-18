@@ -1,17 +1,17 @@
 # Repo working rules
 
 These rules govern any change to this repo, by a human or an AI assistant. They exist because the repo
-is a public CV — sloppiness here is visible to the target employer.
+is a public CV - sloppiness here is visible to the target employer.
 
 ## Core conventions
 
 - **Minimal, no overengineering.** Write the least code that is correct and production-credible. No
   speculative features, no boilerplate bloat. A short comment only where it explains *why* a non-obvious
-  choice exists — never to narrate *what* the code does.
+  choice exists - never to narrate *what* the code does.
 - **Facts only in docs.** Do not invent the author's bio, years of experience, employers, photo, or
   contact details. Mark every unknown personal fact with a clear placeholder, e.g.
   `{{TODO: real years of Azure experience}}`. You *may* state as fact anything true about this repo's
-  own architecture — it is real and built here.
+  own architecture - it is real and built here.
 - **Zero secret values.** Never write a real key, token, password, client-id, tenant-id, or
   subscription-id. Use `${{ secrets.* }}`, Terraform variables, or the literal `REPLACE_ME`. A leaked
   value is a project-level failure. gitleaks gates this pre-commit and in CI.
@@ -22,7 +22,7 @@ is a public CV — sloppiness here is visible to the target employer.
 - **Keep status current.** The repo captures *design*; the *operational state* (what is actually
   deployed, where, what's done vs pending) is not derivable from the code. After any change to what is
   deployed, to configuration, or after hitting a non-obvious gotcha worth the next person knowing, update
-  [`docs/STATUS.md`](docs/STATUS.md) (secret-free) as part of that change — so a fresh human or AI agent
+  [`docs/STATUS.md`](docs/STATUS.md) (secret-free) as part of that change - so a fresh human or AI agent
   picking up the repo can tell where things stand and resume without re-discovering it.
 
 ## Git identity & commits
@@ -46,7 +46,7 @@ itself is evidence for an agentic-AI employer:
 - **Deterministic gates over vibes.** Correctness is enforced by tools, not trust: gitleaks, Trivy,
   cosign verify, `terraform validate`, `helm lint`, dependency-review. The AI proposes; the gates dispose.
 - **Facts-vs-placeholders discipline.** The assistant is explicitly forbidden from inventing personal
-  facts and must emit `{{TODO}}` markers instead — keeping the public artifact honest.
+  facts and must emit `{{TODO}}` markers instead - keeping the public artifact honest.
 - **Agentic SDLC, separately.** A fuller multi-agent GitHub SDLC (role-based crew + nightly AI security
   review) is documented in [`docs/ai-agents.md`](docs/ai-agents.md); what is *wired live in this repo*
   vs what exists as a separate platform is stated there honestly.

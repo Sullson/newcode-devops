@@ -1,14 +1,14 @@
-# SLO — live front
+# SLO - live front
 
 Service-level objective for the **always-on** CV front at `newcode.msulawiak.pl`. The on-demand AKS
-surface is ephemeral by design and is *not* under an availability SLO — its evidence model is described
+surface is ephemeral by design and is *not* under an availability SLO - its evidence model is described
 in [docs/evidence/](docs/evidence/).
 
 ## Service
 
 - **SLI**: successful HTTP responses (`2xx`/`3xx`) to `GET /` and `GET /healthz`, measured at the edge.
-- **SLO — availability**: **99.9%** of requests succeed over a rolling **30-day** window.
-- **SLO — latency**: **p95 < 500 ms** at the edge (static content, globally cached by SWA / Cloudflare).
+- **SLO - availability**: **99.9%** of requests succeed over a rolling **30-day** window.
+- **SLO - latency**: **p95 < 500 ms** at the edge (static content, globally cached by SWA / Cloudflare).
 
 ## Error budget
 

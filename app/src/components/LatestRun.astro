@@ -2,7 +2,7 @@
 // Build-time evidence card. Reads the newest docs/evidence/aks-proof-*.md the
 // deploy-aks workflow committed and surfaces its real, public facts: the run
 // timestamp, the commit, the cosign-verified image digest, and the aks-*-vmss
-// node it ran on. No runtime fetch — parsed at build, so it respects the
+// node it ran on. No runtime fetch - parsed at build, so it respects the
 // zero-external-requests posture and stays visible even when the cluster is down.
 //
 // Honest by construction: this is "a real signed deploy happened and was
@@ -55,7 +55,7 @@ if (dir) {
       const text = fs.readFileSync(path.join(dir, file), 'utf8');
       run = {
         file,
-        timestamp: match(/#\s*AKS proof\s*[—-]\s*(\S+)/, text) ?? file.replace(/^aks-proof-|\.md$/g, ''),
+        timestamp: match(/#\s*AKS proof\s*[--]\s*(\S+)/, text) ?? file.replace(/^aks-proof-|\.md$/g, ''),
         commit: match(/Commit:\s*`([0-9a-f]{7,40})`/, text),
         digest: match(/"docker-manifest-digest":"(sha256:[0-9a-f]+)"/, text),
         node: match(/(aks-[a-z0-9-]*vmss[0-9a-z]+)/i, text),
@@ -109,7 +109,7 @@ const shortCommit = run?.commit ? run.commit.slice(0, 7) : null;
         )}
       </dl>
       <p class="evidence-card__foot">
-        Captured by the deploy-aks pipeline and committed to the repo —{' '}
+        Captured by the deploy-aks pipeline and committed to the repo -{' '}
         <a
           href={`${REPO}/blob/main/docs/evidence/${run.file}`}
           target="_blank"
@@ -123,7 +123,7 @@ const shortCommit = run?.commit ? run.commit.slice(0, 7) : null;
   <div class="evidence-card">
     <div class="evidence-card__body">
       <p class="evidence-card__foot">
-        <span class="todo">{'{{TODO: evidence not found at build time}}'}</span> —{' '}
+        <span class="todo">{'{{TODO: evidence not found at build time}}'}</span> -{' '}
         <a
           href={`${REPO}/tree/main/docs/evidence`}
           target="_blank"

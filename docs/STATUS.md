@@ -1,6 +1,6 @@
 # Deployment status & resume notes
 
-State that is **not** derivable from the code/git — what is actually deployed, what
+State that is **not** derivable from the code/git - what is actually deployed, what
 remains, and the non-obvious gotchas hit during bring-up. For a fresh agent or human
 picking this up. No secret values here (per the repo's zero-secrets rule); concrete
 identifiers come from `terraform output` / GitHub secrets.
@@ -14,7 +14,7 @@ _Last updated: 2026-06-18._
   tunnel + DNS. TF state is in the `stnewcodecvtf` storage account (`cv.tfstate`).
 - **CI is green**: build → Trivy (clean) → cosign keyless sign → push. ACR holds
   `cv-site:latest`, `cv-site:<sha>`, and the `…​.sig` signature.
-- **Front is live**: `https://newcode.msulawiak.pl` — Azure Static Web Apps, real CV
+- **Front is live**: `https://newcode.msulawiak.pl` - Azure Static Web Apps, real CV
   content, valid TLS (SWA-managed cert).
 - **GitHub is configured**: repo secrets (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`,
   `AZURE_SUBSCRIPTION_ID`, `CF_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `SWA_DEPLOY_TOKEN`,
@@ -29,7 +29,7 @@ _Last updated: 2026-06-18._
   `kubectl get pods` + `helm status`), committed back by the workflow.
 - **Tailscale is configured**: one OAuth client (scopes `devices:core` + `auth_keys`, tags
   `tag:ci` + `tag:k8s-operator`) plus the tailnet ACL (mutual tag ownership + the kubernetes
-  grant — see gotcha below).
+  grant - see gotcha below).
 
 ## Not done yet ⏳
 - **Only the manual `action=up`/`down` path is proven; a scheduled (cron) run has not yet
@@ -40,14 +40,14 @@ _Last updated: 2026-06-18._
 - **Quality follow-ups (not deployment blockers):** `helm lint` is not yet a CI gate; the
   chart deploys `:latest` rather than the immutable `:sha` (cosign also verifies `:latest`, a
   TOCTOU gap); `SLO.md` still describes the Managed-Grafana alerting as if always-on. (RUNBOOK
-  §5 still shows the old single-tag Tailscale snippet — superseded by the mutual-ownership
+  §5 still shows the old single-tag Tailscale snippet - superseded by the mutual-ownership
   gotcha below.) Third-party Actions are now **SHA-pinned** (every `uses:` carries a `@<sha>
   # vX.Y.Z` comment); Renovate ratchets them. The pinned major may still run on Node 20 (a
   GitHub deprecation *warning*, not a failure) until Renovate bumps the major.
 
 ## Pending this change set (implemented, NOT yet deployed)
 Built and verified locally (Astro build + `helm lint`/`template` green), awaiting push + CI:
-- **Site restyled to the newcode.ai design language** — light theme, self-hosted **DM Sans /
+- **Site restyled to the newcode.ai design language** - light theme, self-hosted **DM Sans /
   Source Serif 4 / Fragment Mono** woff2 under `app/public/fonts/` (zero external requests
   preserved), blue accent + purple→magenta brand gradient. Copy rewritten to drop the AI-tells
   (no "the infrastructure is the CV", no "Plain terms:" spans, no antithesis closers). Every
@@ -56,7 +56,7 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
   - the in-cluster nginx serves **`/proof.json`** rendered at container start by
     `app/docker-entrypoint.d/40-render-proof.sh` from the **Downward API** (pod, `aks-*-vmss`
     node, namespace) + Helm-passed `image.digest` / `cluster.{name,region,apiDomain}`. Only
-    whitelisted public fields — never an `env` dump. SWA has no pod, so `/proof.json` 404s there.
+    whitelisted public fields - never an `env` dump. SWA has no pod, so `/proof.json` 404s there.
   - the page fetches `/proof.json` same-origin (→ "served from this AKS pod", green ribbon) or
     the cluster's cross-origin (→ "the cluster is up"). The `*.azmk8s.io` API host + node name
     are shown as the official AKS markers.
@@ -71,10 +71,10 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
 ## Gotchas / decisions for whoever resumes
 - **`dependency-review` CI gate needs the repo's Dependency graph ON.** It failed on every PR
   ("Dependency review is not supported... enable Dependency graph") even though the repo is
-  public — the dependency graph was off (SBOM 404, compare API 403). Fixed by enabling
+  public - the dependency graph was off (SBOM 404, compare API 403). Fixed by enabling
   Dependabot alerts, which forces the graph on:
   `gh api -X PUT repos/Sullson/newcode-devops/vulnerability-alerts`. If a fork/clone sees the
-  same failure, that's the toggle. (`dependabot_security_updates` left off — Renovate owns deps.)
+  same failure, that's the toggle. (`dependabot_security_updates` left off - Renovate owns deps.)
 - **First `terraform apply` needs an RG import.** `scripts/bootstrap-backend.sh` creates
   `rg-newcode-cv` (to host the state account); Terraform also manages that RG, so import
   it before the first apply or it errors "already exists":
@@ -88,18 +88,18 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
 - **Tailscale: the shared OAuth client needs *mutual tag ownership*.** One OAuth client
   (scopes `devices:core` + `auth_keys`) mints both the CI node (`tag:ci`) and the operator
   (`tag:k8s-operator`). An OAuth client may apply tag X only if one of *its own* tags is in
-  `tagOwners[X]` — `[]` and `["autogroup:admin"]` both fail (the client is not a user). The
+  `tagOwners[X]` - `[]` and `["autogroup:admin"]` both fail (the client is not a user). The
   tailnet ACL therefore needs `"tag:ci": ["autogroup:admin","tag:k8s-operator"]` and
   `"tag:k8s-operator": ["autogroup:admin","tag:ci"]`, plus a grant
   `{src:[tag:ci], dst:[tag:k8s-operator], app:{"tailscale.com/cap/kubernetes":[{impersonate:{groups:[system:masters]}}]}}`
   and network reachability `tag:ci → tag:k8s-operator:443`. Symptom when wrong:
   `400 "requested tags [...] are invalid or not permitted"`. NB `tailscale/github-action`
-  marks its step **success** even when `tailscale up` fails every retry — read the step log.
+  marks its step **success** even when `tailscale up` fails every retry - read the step log.
 - **The operator is bootstrapped via the runCommand ARM REST API, not `az aks command
   invoke`.** The CLI wrapper's long-running-operation poller is broken across az versions
   ("Operation returned an invalid status 'OK'/'Not Found'") and swallows the result; the REST
   call (`POST …/runCommand` with a `clusterToken`, then poll `commandResults`) surfaces
-  `exitCode`/`logs`/`reason` — that is how the real failure (an Unschedulable helper pod) was
+  `exitCode`/`logs`/`reason` - that is how the real failure (an Unschedulable helper pod) was
   found.
 - **Node pool is 2× `Standard_D2s_v3`.** `Standard_B2s`/`B2s_v2` are unavailable / zero-quota
   in `swedencentral` for this subscription; the `D*sv3` family has quota. A single 2-vCPU node
@@ -112,11 +112,11 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
   Insights, Web, Network, AlertsManagement.
 - **GitHub OIDC subject matching is case-sensitive** (Entra, Aug-2024 change). Set
   `TF_VAR_github_repo` to the **exact** GitHub owner/repo casing (e.g. `Sullson/...`).
-  Changing a federated credential's subject requires **delete + recreate** — an in-place
+  Changing a federated credential's subject requires **delete + recreate** - an in-place
   edit does not re-register at the token endpoint (symptom: `AADSTS7002138`, "matches
   case-insensitive but not case-sensitive"). `cosign verify` uses a `(?i)` regexp for the
   same reason.
-- **`aquasecurity/trivy-action` is pinned to `v0.36.0`** — `v0.28.0` referenced a removed
+- **`aquasecurity/trivy-action` is pinned to `v0.36.0`** - `v0.28.0` referenced a removed
   `setup-trivy@v0.2.1` and failed at action setup.
 - **The runtime image runs `apk upgrade`** to clear fixable base-image CVEs that the Trivy
   HIGH/CRITICAL gate (correctly) blocks on.
