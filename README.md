@@ -77,7 +77,7 @@ uploads yet); everything on the AKS path is OIDC/keyless. Full walkthrough: [`do
 | [`terraform/`](terraform/) | `azurerm` IaC: private AKS, ACR, Key Vault, Managed Prom/Grafana, SWA, Cloudflare tunnel, OIDC identities |
 | [`helm/cv-site/`](helm/cv-site/) | Chart: Deployment, HPA, PDB, ServiceMonitor, NetworkPolicy, workload-identity SA, cloudflared, SecretProviderClass, in-cluster Prometheus + Grafana |
 | [`.github/workflows/`](.github/workflows/) | CI (build+scan+sign), `infra` (Terraform), `deploy-aks` (up/down live window), `security-nightly` |
-| [`docs/`](docs/) | [architecture](docs/architecture.md) · [runbook](docs/RUNBOOK.md) · [ai-agents](docs/ai-agents.md) · [evidence](docs/evidence/) |
+| [`docs/`](docs/) | [status](docs/STATUS.md) · [architecture](docs/architecture.md) · [runbook](docs/RUNBOOK.md) · [ai-agents](docs/ai-agents.md) · [evidence](docs/evidence/) |
 | [`SECURITY.md`](SECURITY.md) · [`SLO.md`](SLO.md) | Threat model & posture · service level |
 
 **Zero inbound ports**: private kube-apiserver (CI reaches it over Tailscale), app traffic via an
