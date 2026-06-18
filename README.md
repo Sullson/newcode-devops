@@ -1,18 +1,17 @@
 # newcode-devops
 
-**Senior DevOps for production AI infrastructure — the infrastructure in this repo *is* the CV.**
+**Senior DevOps for production AI infrastructure.**
 
-Instead of *describing* skills, this repo *runs* them: an Azure + AKS + Terraform + Helm + GitHub
-Actions stack that builds, signs, deploys and observes a real site — with **zero inbound ports** on the
-cluster and **zero secret values** in a public repo. The site it serves is my CV. The interesting part
-is everything around it.
+An Azure + AKS + Terraform + Helm + GitHub Actions stack that builds, signs, deploys and observes a real
+site, with zero inbound ports on the cluster and no secret values in a public repo. The site it serves
+is my CV, and it's deployed by the pipelines in this repo.
 
 ---
 
 ## ▶ See it running
 
-The full private-AKS platform runs **live daily 10:00–13:00 (Europe/Warsaw)**, then tears itself down so
-it costs nothing idle. During that window, from any browser, no login:
+The full private-AKS platform runs on weekdays in four 45-minute windows — **10:00, 12:00, 14:00 and
+16:00 (Europe/Warsaw)** — then tears itself down. During a window, from any browser, no login:
 
 | | |
 |---|---|
@@ -21,8 +20,8 @@ it costs nothing idle. During that window, from any browser, no login:
 | 🟦 **Always-on front** (Azure Static Web Apps, $0) | https://newcode.msulawiak.pl |
 | 📁 **Timestamped proof** of each run (cosign + kubectl output) | [`docs/evidence/`](docs/evidence/) |
 
-Outside the window the cluster is gone (the always-on front stays up). Want a live demo at another time?
-Ask, or it can be spun up on demand via the `deploy-aks` workflow.
+Outside a window the cluster is gone; the always-on front stays up. Need a window at another time? Ask,
+or trigger the `deploy-aks` workflow.
 
 ---
 

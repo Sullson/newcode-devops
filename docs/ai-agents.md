@@ -21,7 +21,7 @@ auditable in the GitHub timeline.
 | **Closer** | `state:done` | Merge when green + approved, tidy up, write the manifest/changelog entry | — |
 | **CI-poke** | checks stuck/failed | Nudge or re-run CI, surface the failure back as `state:fix` | Fix |
 
-Properties that make it credible rather than a gimmick:
+Why this holds up:
 - **Deterministic gates are authoritative.** Agents propose; the CI gates (gitleaks, Trivy, cosign
   verify, `terraform validate`, `helm lint`, dependency-review) decide. An agent cannot merge red.
 - **Label = state** means no separate database; GitHub is the source of truth and humans can intervene
@@ -72,5 +72,5 @@ LLM triages; the scanners detect.
 - The full 6-role crew runs on a separate multi-agent SDLC platform I built and operate. This repo
   demonstrates the *methodology and the live security-nightly slice*; it does not vendor the whole platform.
 
-This is deliberate: it shows I can both **operate** a real agentic platform and **right-size** what
-belongs in a given repo.
+The split is deliberate: I run the full agentic platform separately, and keep this repo to the slice
+that belongs in it.

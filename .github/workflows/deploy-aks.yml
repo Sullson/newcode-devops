@@ -1,14 +1,17 @@
 name: deploy-aks
 
-# The on-demand AKS proof, run as a daily LIVE WINDOW so anyone can open a
+# The on-demand AKS proof, run as recurring LIVE WINDOWS so anyone can open a
 # browser and see the whole platform working:
 #   * up   — stand up the PRIVATE-API cluster, deploy cv-site + in-cluster
 #            Grafana, verify the signed image, record evidence. Leaves it RUNNING.
 #   * down — tear the ephemeral cluster back down (cost control).
 #
-# Default schedule: up 10:00, down 13:00 (Europe/Warsaw). GitHub cron is UTC and
-# has no DST, so these are set for CEST (summer, UTC+2). In winter (CET, UTC+1)
-# the window shifts to 09:00-12:00 local; adjust the crons if that matters.
+# Schedule: four 45-minute windows on weekdays — up at 10:00 / 12:00 / 14:00 /
+# 16:00, each torn down 45 min later. GitHub cron is UTC with no DST, so these
+# are pinned to CEST (summer, UTC+2); in winter (CET, UTC+1) the windows land an
+# hour earlier in local time — adjust the crons if that matters. Each `up` builds
+# the cluster from scratch (~15 min before it serves), so the live-serving slice
+# of each window is ~30 min.
 #
 # During the window:
 #   * app      https://aks-newcode.msulawiak.pl
@@ -23,8 +26,8 @@ on:
         options: [up, down]
         default: up
   schedule:
-    - cron: "0 8 * * 1-5"  # 10:00 CEST — up (weekdays)
-    - cron: "0 11 * * 1-5" # 13:00 CEST — down (weekdays)
+    - cron: "0 8,10,12,14 * * 1-5"  # up   — 10/12/14/16 CEST (weekdays)
+    - cron: "45 8,10,12,14 * * 1-5" # down — 45 min after each up
 
 permissions:
   contents: read
@@ -58,7 +61,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "action=${{ inputs.action }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "0 11 * * 1-5" ]; then
+          elif [ "${{ github.event.schedule }}" = "45 8,10,12,14 * * 1-5" ]; then
             echo "action=down" >> "$GITHUB_OUTPUT"
           else
             echo "action=up" >> "$GITHUB_OUTPUT"
@@ -215,6 +218,18 @@ jobs:
             --certificate-identity-regexp "(?i)https://github.com/sullson/newcode-devops/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             | tee /tmp/cosign-verify.txt
+          # Surface the exact digest cosign just verified so the live /proof.json
+          # can show it (sourced here, never hardcoded in the repo).
+          echo "digest=$(jq -r '.[0].critical.image."docker-manifest-digest" // empty' /tmp/cosign-verify.txt)" >> "$GITHUB_OUTPUT"
+
+      # Public cluster facts for the live /proof.json: the *.azmk8s.io API host
+      # and the region. Neither grants access (private + AAD-gated); they just
+      # let the page show which AKS cluster is serving it.
+      - name: Read cluster facts
+        id: facts
+        run: |
+          echo "api_domain=$(az aks show -g "$RG" -n "$AKS" --query privateFqdn -o tsv)" >> "$GITHUB_OUTPUT"
+          echo "region=$(az aks show -g "$RG" -n "$AKS" --query location -o tsv)" >> "$GITHUB_OUTPUT"
 
       - name: Helm upgrade --install cv-site
         run: |
@@ -222,6 +237,10 @@ jobs:
             --namespace "$HELM_NAMESPACE" --create-namespace \
             --set image.repository="$ACR_LOGIN_SERVER/$IMAGE_NAME" \
             --set image.tag="latest" \
+            --set image.digest="${{ steps.cosign.outputs.digest }}" \
+            --set cluster.name="$AKS" \
+            --set cluster.region="${{ steps.facts.outputs.region }}" \
+            --set cluster.apiDomain="${{ steps.facts.outputs.api_domain }}" \
             --set workloadIdentity.clientId="${{ steps.tf.outputs.wi_client_id }}" \
             --set keyVault.tenantId="${{ secrets.AZURE_TENANT_ID }}" \
             --wait --timeout 10m
@@ -263,7 +282,7 @@ jobs:
             echo "- Commit: \`${GITHUB_SHA}\` (image tag \`latest\`)"
             echo "- App URL: ${APP_URL}  (/healthz HTTP \`${{ steps.smoke.outputs.status }}\`)"
             echo "- Metrics URL: ${GRAFANA_URL}  (/api/health HTTP \`${{ steps.smoke.outputs.grafana_status }}\`)"
-            echo "- Window: this cluster is left RUNNING; the \`down\` run (13:00 CEST or manual) tears it down. The always-on front stays up."
+            echo "- Window: this cluster is left RUNNING; the next scheduled \`down\` (45 min after each \`up\`, or manual) tears it down. The always-on front stays up."
             echo
             echo "## cosign verify (signature gate, before deploy)"
             echo '```'
