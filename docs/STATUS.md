@@ -39,9 +39,11 @@ _Last updated: 2026-06-18._
   slice of each window is ~30 min.
 - **Quality follow-ups (not deployment blockers):** `helm lint` is not yet a CI gate; the
   chart deploys `:latest` rather than the immutable `:sha` (cosign also verifies `:latest`, a
-  TOCTOU gap); `SLO.md` still describes the Managed-Grafana alerting as if always-on; most
-  third-party Actions are `@tag`-pinned pending Renovate. (RUNBOOK §5 still shows the old
-  single-tag Tailscale snippet — superseded by the mutual-ownership gotcha below.)
+  TOCTOU gap); `SLO.md` still describes the Managed-Grafana alerting as if always-on. (RUNBOOK
+  §5 still shows the old single-tag Tailscale snippet — superseded by the mutual-ownership
+  gotcha below.) Third-party Actions are now **SHA-pinned** (every `uses:` carries a `@<sha>
+  # vX.Y.Z` comment); Renovate ratchets them. The pinned major may still run on Node 20 (a
+  GitHub deprecation *warning*, not a failure) until Renovate bumps the major.
 
 ## Pending this change set (implemented, NOT yet deployed)
 Built and verified locally (Astro build + `helm lint`/`template` green), awaiting push + CI:
@@ -67,6 +69,12 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
 - Window-time copy in README + architecture.md updated to the four-window schedule.
 
 ## Gotchas / decisions for whoever resumes
+- **`dependency-review` CI gate needs the repo's Dependency graph ON.** It failed on every PR
+  ("Dependency review is not supported... enable Dependency graph") even though the repo is
+  public — the dependency graph was off (SBOM 404, compare API 403). Fixed by enabling
+  Dependabot alerts, which forces the graph on:
+  `gh api -X PUT repos/Sullson/newcode-devops/vulnerability-alerts`. If a fork/clone sees the
+  same failure, that's the toggle. (`dependabot_security_updates` left off — Renovate owns deps.)
 - **First `terraform apply` needs an RG import.** `scripts/bootstrap-backend.sh` creates
   `rg-newcode-cv` (to host the state account); Terraform also manages that RG, so import
   it before the first apply or it errors "already exists":

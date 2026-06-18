@@ -33,8 +33,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: gitleaks
-        # TODO: ratchet to SHA (Renovate)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2 (pinned 2026-06-18)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
@@ -49,8 +48,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Setup Node
-        # TODO: ratchet to SHA (Renovate)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (pinned 2026-06-18)
         with:
           node-version: 20
           cache: npm
@@ -78,8 +76,7 @@ jobs:
         run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Azure login (OIDC, no secrets)
-        # TODO: ratchet to SHA (Renovate)
-        uses: azure/login@v2
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2 (pinned 2026-06-18)
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -100,8 +97,7 @@ jobs:
 
       - name: Trivy scan (gate + SARIF)
         # One scan: writes SARIF AND exits 1 on HIGH/CRITICAL so it still gates.
-        # TODO: ratchet to SHA (Renovate)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (pinned 2026-06-18)
         with:
           image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha }}
           severity: HIGH,CRITICAL
@@ -113,8 +109,7 @@ jobs:
       - name: Upload Trivy SARIF to Security tab
         # always(): upload even when the gate above failed, so findings surface.
         if: always()
-        # TODO: ratchet to SHA (Renovate)
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3 (pinned 2026-06-18)
         with:
           sarif_file: trivy-results.sarif
           category: trivy-image
@@ -125,8 +120,7 @@ jobs:
           docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:latest"
 
       - name: Install cosign
-        # TODO: ratchet to SHA (Renovate)
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3 (pinned 2026-06-18)
 
       - name: Cosign keyless sign (OIDC / Sigstore)
         run: |
@@ -145,8 +139,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Dependency Review
-        # TODO: ratchet to SHA (Renovate)
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4 (pinned 2026-06-18)
         with:
           fail-on-severity: high
           comment-summary-in-pr: on-failure
@@ -170,8 +163,7 @@ jobs:
         id: vars
         run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
       - name: Azure login (OIDC, no secrets)
-        # TODO: ratchet to SHA (Renovate)
-        uses: azure/login@v2
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2 (pinned 2026-06-18)
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}

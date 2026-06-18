@@ -89,8 +89,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Azure login (OIDC)
-        # TODO: ratchet to SHA (Renovate)
-        uses: azure/login@v2
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2 (pinned 2026-06-18)
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -187,8 +186,7 @@ jobs:
           tags: tag:ci
 
       - name: Setup helm
-        # TODO: ratchet to SHA (Renovate)
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4 (pinned 2026-06-18)
 
       - name: Configure kubeconfig via Tailscale operator proxy
         env:
@@ -204,8 +202,7 @@ jobs:
       # Pin the cosign binary via the installer action (Renovate-pinnable)
       # instead of curling a moving releases/latest URL into the verify gate.
       - name: Install cosign
-        # TODO: ratchet to SHA (Renovate)
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3 (pinned 2026-06-18)
 
       # Supply-chain gate: verify the image's keyless cosign signature BEFORE we
       # deploy it. A tampered/unsigned image fails the job here. (?i) so the owner
@@ -336,8 +333,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Azure login (OIDC)
-        # TODO: ratchet to SHA (Renovate)
-        uses: azure/login@v2
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2 (pinned 2026-06-18)
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}

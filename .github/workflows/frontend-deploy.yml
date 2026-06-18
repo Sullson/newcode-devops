@@ -25,8 +25,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Node
-        # TODO: ratchet to SHA (Renovate)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (pinned 2026-06-18)
         with:
           node-version: 20
           cache: npm
@@ -41,8 +40,7 @@ jobs:
       - name: Deploy to Azure Static Web Apps
         # SWA deploy token is the supported auth for the Oryx deploy action;
         # OIDC is not yet a first-class path for SWA content uploads.
-        # TODO: ratchet to SHA (Renovate)
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1 # v1 (pinned 2026-06-18)
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOY_TOKEN }}
           action: upload
