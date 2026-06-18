@@ -19,6 +19,11 @@ is a public CV — sloppiness here is visible to the target employer.
   `# vX.Y.Z` comment; for actions without a known-good SHA, pin `@<tag>` and add
   `# TODO: ratchet to SHA (Renovate)`.
 - **English.** The site and target company operate in English; all comments and docs are in English.
+- **Keep status current.** The repo captures *design*; the *operational state* (what is actually
+  deployed, where, what's done vs pending) is not derivable from the code. After any change to what is
+  deployed, to configuration, or after hitting a non-obvious gotcha worth the next person knowing, update
+  [`docs/STATUS.md`](docs/STATUS.md) (secret-free) as part of that change — so a fresh human or AI agent
+  picking up the repo can tell where things stand and resume without re-discovering it.
 
 ## Git identity & commits
 
