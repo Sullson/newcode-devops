@@ -25,7 +25,7 @@ resource "azurerm_dashboard_grafana" "amg" {
   name                  = "amg-newcode-cv"
   resource_group_name   = azurerm_resource_group.rg.name
   location              = azurerm_resource_group.rg.location
-  grafana_major_version = 11
+  grafana_major_version = 12
   sku                   = "Standard"
 
   azure_monitor_workspace_integrations {

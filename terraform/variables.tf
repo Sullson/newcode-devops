@@ -62,9 +62,9 @@ variable "node_count" {
 }
 
 variable "vm_size" {
-  description = "VM SKU for the system node pool. Small/cheap by design."
+  description = "VM SKU for the system node pool. Small/cheap by design (B-series v2: B-series v1 is no longer offered in newer subscriptions/regions)."
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_B2s_v2"
 }
 
 variable "tags" {
