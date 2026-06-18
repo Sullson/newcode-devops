@@ -62,9 +62,9 @@ variable "node_count" {
 }
 
 variable "vm_size" {
-  description = "VM SKU for the system node pool. Small/cheap by design (B-series v2: B-series v1 is no longer offered in newer subscriptions/regions)."
+  description = "VM SKU for the system node pool. Small/cheap by design. D2s_v3: the B-series-v2 family has zero vCPU quota in this subscription/region, while the D*sv3 family is available (2 vCPU / 8 GiB, comfortably fits the proof stack on one node)."
   type        = string
-  default     = "Standard_B2s_v2"
+  default     = "Standard_D2s_v3"
 }
 
 variable "tags" {
