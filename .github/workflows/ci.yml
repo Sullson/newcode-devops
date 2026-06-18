@@ -89,7 +89,14 @@ jobs:
         run: az acr login --name acrnewcodecv
 
       - name: Build image
-        run: docker build -t "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.vars.outputs.sha }}" app
+        # Tag both the immutable :<sha> (traceability, scan, signing) and the
+        # moving :latest that the on-demand deploy-aks proof pulls. Same digest,
+        # so the cosign signature below covers both tags.
+        run: |
+          docker build \
+            -t "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.vars.outputs.sha }}" \
+            -t "$ACR_LOGIN_SERVER/$IMAGE_NAME:latest" \
+            app
 
       - name: Trivy scan (gate + SARIF)
         # One scan: writes SARIF AND exits 1 on HIGH/CRITICAL so it still gates.
@@ -113,7 +120,9 @@ jobs:
           category: trivy-image
 
       - name: Push image (only after scan passes)
-        run: docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.vars.outputs.sha }}"
+        run: |
+          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.vars.outputs.sha }}"
+          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:latest"
 
       - name: Install cosign
         # TODO: ratchet to SHA (Renovate)
@@ -142,9 +151,12 @@ jobs:
           fail-on-severity: high
           comment-summary-in-pr: on-failure
 
-  # Promote the already-built, scanned, signed image to :latest on a GitHub
-  # Release. Server-side retag (az acr import) — zero rebuild, so :latest is
-  # byte-identical to the :<sha> that passed CI.
+  # OPTIONAL / NOT USED FOR NOW: promote a chosen build to :latest on a GitHub
+  # Release. Today :latest is maintained by the main build above (every push to
+  # main) and that is what the on-demand proof deploys. Cutting GitHub Releases
+  # is the more rigorous path — it pins :latest to an immutable, byte-identical
+  # released :<sha> via a server-side retag (az acr import, zero rebuild). This
+  # job stays wired for when releases are adopted; it is not required today.
   promote:
     name: promote-latest-on-release
     if: github.event_name == 'release'

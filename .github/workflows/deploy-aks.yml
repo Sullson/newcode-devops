@@ -17,8 +17,9 @@ permissions:
   contents: read
 
 concurrency:
-  # Never run two of these against the same TF state / cluster at once.
-  group: deploy-aks
+  # Serialize anything touching shared TF state (same group as infra.yml) so an
+  # infra apply and a proof run can never run terraform against cv.tfstate at once.
+  group: terraform-state
   cancel-in-progress: false
 
 env:
@@ -53,10 +54,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Short SHA
-        id: vars
-        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Azure login (OIDC)
         # TODO: ratchet to SHA (Renovate)
@@ -144,6 +141,12 @@ jobs:
           done
           kubectl cluster-info
 
+      # Pin the cosign binary via the installer action (Renovate-pinnable)
+      # instead of curling a moving releases/latest URL into the verify gate.
+      - name: Install cosign
+        # TODO: ratchet to SHA (Renovate)
+        uses: sigstore/cosign-installer@v3
+
       # Supply-chain gate: verify the image's keyless cosign signature BEFORE we
       # deploy it. A tampered/unsigned image fails the job here. Output is kept
       # for the evidence file.
@@ -151,9 +154,7 @@ jobs:
         id: cosign
         run: |
           az acr login --name acrnewcodecv
-          curl -sSfL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o /usr/local/bin/cosign
-          chmod +x /usr/local/bin/cosign
-          cosign verify "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ steps.vars.outputs.sha }}" \
+          cosign verify "$ACR_LOGIN_SERVER/$IMAGE_NAME:latest" \
             --certificate-identity-regexp "https://github.com/sullson/newcode-devops/.*" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             | tee /tmp/cosign-verify.txt
@@ -163,7 +164,7 @@ jobs:
           helm upgrade --install "$HELM_RELEASE" helm/cv-site \
             --namespace "$HELM_NAMESPACE" --create-namespace \
             --set image.repository="$ACR_LOGIN_SERVER/$IMAGE_NAME" \
-            --set image.tag="${{ steps.vars.outputs.sha }}" \
+            --set image.tag="latest" \
             --set workloadIdentity.clientId="${{ steps.tf.outputs.wi_client_id }}" \
             --set keyVault.tenantId="${{ secrets.AZURE_TENANT_ID }}" \
             --wait --timeout 10m
@@ -199,7 +200,7 @@ jobs:
           {
             echo "# AKS proof — ${ts}"
             echo
-            echo "- Commit: \`${GITHUB_SHA}\` (image tag \`${{ steps.vars.outputs.sha }}\`)"
+            echo "- Commit: \`${GITHUB_SHA}\` (image tag \`latest\`)"
             echo "- App URL: ${APP_URL}"
             echo "- /healthz HTTP status: \`${{ steps.smoke.outputs.status }}\`"
             echo "- Teardown: the ephemeral AKS stack is removed in this workflow's final always() step (\`terraform apply -var deploy_aks=false\`); the always-on front stays up."

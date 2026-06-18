@@ -56,8 +56,10 @@ the container image — the SWA is the durable, $0 surface so the CV is never do
 on-demand proof surface.
 
 ### ACR (`acrnewcodecv`) + image
-`acrnewcodecv.azurecr.io/cv-site:<tag>` where `<tag>` is the git short SHA on `main` (`:latest` on a
-GitHub Release). The image is nginx serving the Astro static output on `:8080`, `/healthz` returns 200.
+`acrnewcodecv.azurecr.io/cv-site:<tag>` where `<tag>` is the git short SHA on `main`; the `main` build
+also updates the moving `:latest` tag that the on-demand AKS proof deploys. (Promoting an immutable
+`:latest` via a GitHub Release is a more rigorous path — wired in `ci.yml` but not used for now.) The
+image is nginx serving the Astro static output on `:8080`, `/healthz` returns 200.
 Built, Trivy-scanned, and cosign-signed in CI; verified before deploy.
 
 ---
