@@ -24,8 +24,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Renovate
-        # TODO: ratchet to SHA (Renovate)
-        uses: renovatebot/github-action@v40
+        uses: renovatebot/github-action@0984fb80fc633b17e57f3e8b6c007fe0dc3e0d62 # v40.3.6 (pinned 2026-06-18)
         with:
           configurationFile: renovate.json
           token: ${{ secrets.GITHUB_TOKEN }}

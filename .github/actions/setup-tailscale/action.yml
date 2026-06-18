@@ -20,8 +20,7 @@ runs:
   using: composite
   steps:
     - name: Connect to tailnet (ephemeral)
-      # TODO: ratchet to SHA (Renovate)
-      uses: tailscale/github-action@v3
+      uses: tailscale/github-action@6cae46e2d796f265265cfcf628b72a32b4d7cade # v3 (pinned 2026-06-18)
       with:
         oauth-client-id: ${{ inputs.oauth-client-id }}
         oauth-secret: ${{ inputs.oauth-secret }}
