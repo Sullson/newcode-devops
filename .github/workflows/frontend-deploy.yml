@@ -3,6 +3,7 @@ name: frontend-deploy
 # Cheap, always-on path: build the Astro static site and ship it to Azure
 # Static Web Apps (free tier). This front is up 24/7; the AKS proof is on-demand.
 on:
+  workflow_dispatch: # manual redeploy of the front
   push:
     branches: [main]
     paths:
