@@ -99,6 +99,43 @@ serviceMonitor:
   interval: 30s
   scrapeTimeout: 10s
 
+# In-cluster observability for the PUBLIC live window (daily 10:00-13:00 CEST):
+# a lightweight Prometheus + anonymous Grafana, reachable in a browser via the
+# Cloudflare Tunnel at grafana-newcode... with NO Azure login. This is the
+# self-serve "see the metrics yourself" view. Azure Managed Prometheus/Grafana
+# (serviceMonitor above + terraform/monitoring.tf) stay as the production-grade,
+# Azure-native variant. Data is ephemeral (emptyDir) — fine for an on-demand demo.
+observability:
+  enabled: true
+  prometheus:
+    image:
+      repository: prom/prometheus
+      tag: "v3.1.0"
+      pullPolicy: IfNotPresent
+    retention: "6h"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 512Mi
+  grafana:
+    image:
+      repository: grafana/grafana
+      tag: "11.4.0"
+      pullPolicy: IfNotPresent
+    # Public hostname the tunnel routes to this Grafana (terraform/cloudflare.tf).
+    # Used for GF_SERVER_ROOT_URL so generated links resolve correctly.
+    publicUrl: https://grafana-newcode.msulawiak.pl
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
 # Multi-tenant isolation DEMO: one namespace per tenant, each with a
 # default-deny NetworkPolicy. Proves confidential-data tenant isolation.
 tenants:

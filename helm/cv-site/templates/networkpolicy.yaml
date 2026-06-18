@@ -114,3 +114,119 @@ spec:
           port: {{ .Values.containerPorts.http }}
   # No ingress rules => cloudflared accepts zero inbound connections.
   ingress: []
+{{- if .Values.observability.enabled }}
+---
+# Prometheus: scrapes the cv-site exporter (egress :9113); only Grafana may query
+# it (ingress :9090). DNS egress comes from the namespace-wide allow-dns above.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "cv-site.fullname" . }}-prometheus
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cv-site.prometheus.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "cv-site.prometheus.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "cv-site.grafana.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "cv-site.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.exporter.port }}
+---
+# Grafana: reachable ONLY from cloudflared (the tunnel) on :3000; egress only to
+# the in-cluster Prometheus on :9090. Public in the browser, locked down in-cluster.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "cv-site.fullname" . }}-grafana
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cv-site.grafana.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "cv-site.grafana.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "cv-site.cloudflared.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "cv-site.prometheus.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 9090
+---
+# Additive egress so cloudflared can also reach Grafana (it already has the
+# edge + cv-site egress in the policy above; egress rules union per pod).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "cv-site.fullname" . }}-cloudflared-grafana
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cv-site.cloudflared.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "cv-site.cloudflared.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "cv-site.grafana.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 3000
+---
+# Additive ingress so Prometheus can scrape the cv-site exporter (:9113); the
+# base cv-site policy admits only cloudflared + kube-system metrics.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "cv-site.fullname" . }}-metrics-from-prometheus
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cv-site.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "cv-site.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "cv-site.prometheus.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.exporter.port }}
+{{- end }}

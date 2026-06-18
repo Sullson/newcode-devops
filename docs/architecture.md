@@ -39,7 +39,7 @@ when the run ends. Setup action: [`.github/actions/setup-tailscale/`](../.github
 
 ### Cloudflare Tunnel (`cloudflared`)
 App ingress is **outbound-only**. `cloudflared` runs as its own Deployment in namespace `cv` and dials
-out to the Cloudflare edge, which routes `aks.newcode.msulawiak.pl` back down the tunnel to the
+out to the Cloudflare edge, which routes `aks-newcode.msulawiak.pl` back down the tunnel to the
 ClusterIP Service. There is no LoadBalancer, no public Ingress, no NodePort — nothing to expose. The
 tunnel token comes from Key Vault via the CSI driver, not the repo.
 
@@ -49,6 +49,13 @@ Each cv-site pod runs an `nginx-prometheus-exporter` sidecar on `:9113 /metrics`
 what to scrape. Managed Grafana renders the RED dashboard
 ([`grafana/dashboard-red.json`](../grafana/dashboard-red.json)): request **R**ate, **E**rror rate, and
 **D**uration (p50/p95). Diagnostic logs land in Log Analytics `log-newcode-cv`. SLO in [SLO.md](../SLO.md).
+
+This Azure-native path is the **production-grade variant**. For the public live window there is also a
+**lightweight in-cluster Prometheus + anonymous Grafana** (in the Helm chart) exposed through the same
+Cloudflare Tunnel at `grafana-newcode.msulawiak.pl`, so anyone can read the live dashboard in a browser
+with no Azure login. It scrapes the same exporter (per-pod, via a headless Service + DNS SD) and renders a
+trimmed live dashboard ([`helm/cv-site/dashboards/cv-site-live.json`](../helm/cv-site/dashboards/cv-site-live.json))
+— only the panels backed by real `stub_status` data, so a visitor never lands on an empty "No data" panel.
 
 ### Azure Static Web Apps (`swa-newcode-cv`)
 The always-on, free-tier front at `newcode.msulawiak.pl`. It serves the **same** Astro static output as
@@ -88,9 +95,10 @@ A private AKS cluster with node pools running 24/7 to serve a static CV would co
 benefit — the CV is static HTML. So:
 
 - **Always-on** is Azure **Static Web Apps free tier**: $0, globally cached, never 404s.
-- **On-demand** is the full AKS platform, stood up by `deploy-aks` only to *prove* it works, then
-  destroyed. The durable artifact is the timestamped evidence in [`docs/evidence/`](evidence/), not a
-  running cluster.
+- **On-demand** is the full AKS platform, run as a **daily live window** (10:00–13:00 Europe/Warsaw) by
+  the `deploy-aks` workflow: an `up` run (cron + manual) stands the cluster up and leaves it running so it
+  is browsable; a `down` run (cron + manual) tears it back down. Each `up` records timestamped evidence in
+  [`docs/evidence/`](evidence/), so the durable artifact is the proof, not a running cluster.
 
 This mirrors a real early-stage tradeoff: pay for the proof, not for idle capacity. It also demonstrates
 clean teardown / reproducible-from-zero infrastructure, which matters more than uptime for a demo.

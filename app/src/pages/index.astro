@@ -14,15 +14,33 @@ const repo = 'https://github.com/sullson/newcode-devops';
         <span class="accent">Senior DevOps</span> for production AI infrastructure
       </h1>
       <p>
-        I build and run production-grade <strong>Azure / AKS</strong> platforms —
-        Terraform, Helm, GitHub Actions, observability, multi-tenant isolation,
-        secure by default. Everything below this line lives in this repo and
-        actually runs. Not a list of skills — the working proof.
+        I build and run production-grade <strong>Azure / AKS</strong> platforms.
+        Everything below lives in this repo and actually runs — not a list of
+        skills, the working proof.
       </p>
-      <div class="cta-row">
-        <a class="btn btn--primary" href="#contact">Let's talk</a>
-        <a class="btn btn--ghost" href={repo}>View the repo</a>
+
+      <!-- Self-explaining live status. Server-rendered state = "asleep" (with the
+           window + working links); the inline script flips it to "LIVE" if the
+           on-demand cluster answers /healthz. -->
+      <div
+        id="live"
+        class="live live--off"
+        data-app="https://aks-newcode.msulawiak.pl"
+      >
+        <span class="live__dot" aria-hidden="true"></span>
+        <p class="live__text">
+          <strong>The live platform is asleep right now.</strong> The full
+          private-AKS cluster — app, signed image, real metrics — runs daily
+          <strong>10:00–13:00 (Europe/Warsaw)</strong>, then tears itself down so
+          it costs nothing idle. Catch it in the window, or ask me to spin it up.
+        </p>
+        <div class="live__links cta-row">
+          <a class="btn btn--primary" href="https://aks-newcode.msulawiak.pl">Live app&nbsp;↗</a>
+          <a class="btn btn--ghost" href="https://grafana-newcode.msulawiak.pl">Live metrics&nbsp;↗</a>
+          <a class="btn btn--ghost" href={repo}>Source code&nbsp;↗</a>
+        </div>
       </div>
+
       <div class="badges">
         <span class="badge">Azure</span>
         <span class="badge">AKS</span>
@@ -31,35 +49,53 @@ const repo = 'https://github.com/sullson/newcode-devops';
         <span class="badge">GitHub Actions</span>
         <span class="badge">EU / GDPR</span>
       </div>
+
+      <script is:inline>
+        // Flip the badge to "LIVE" if the on-demand AKS app answers its
+        // CORS-open /healthz. One fetch to our own cluster — no framework,
+        // no third party, no tracker. Off-window (or JS off) it stays "asleep".
+        (function () {
+          var el = document.getElementById("live");
+          if (!el || !window.fetch) return;
+          var ctrl = new AbortController();
+          var t = setTimeout(function () { ctrl.abort(); }, 4000);
+          fetch(el.dataset.app + "/healthz", { cache: "no-store", signal: ctrl.signal })
+            .then(function (r) {
+              clearTimeout(t);
+              if (!r.ok) return;
+              el.className = "live live--on";
+              el.querySelector(".live__text").innerHTML =
+                "<strong>LIVE right now.</strong> The private-AKS cluster is up — " +
+                "the app and the metrics below are served straight from it, no login.";
+            })
+            .catch(function () { clearTimeout(t); });
+        })();
+      </script>
     </div>
   </header>
 
   <!-- (2) This site is the proof -->
   <Section id="proof" eyebrow="Not a slide deck" title="This site is the proof">
     <p class="lead">
-      You're looking at it. The always-on front you're reading is served from
-      <strong>Azure Static Web Apps</strong>. The <em>same</em> container image —
-      one Astro static build, served by nginx — is deployed on demand to a real,
-      private <strong>AKS</strong> cluster via Helm. The whole thing is in this
-      public repo, and the build pipeline is the architecture.
+      You're reading the always-on front (Azure Static Web Apps). The <em>same</em>
+      image is deployed on demand to a real, private <strong>AKS</strong> cluster
+      via Helm — that's the daily live window above.
     </p>
     <ul class="notes">
       <li>
-        Identical artifact, two delivery paths: SWA for always-on, AKS for the
-        live cluster proof at <code>aks.newcode.msulawiak.pl</code>.
+        <strong>See it yourself in the window:</strong> the
+        <a href="https://aks-newcode.msulawiak.pl">app</a> and a live
+        <a href="https://grafana-newcode.msulawiak.pl">Grafana dashboard</a>
+        (no login) are both served from the cluster.
       </li>
       <li>
         <strong>Zero inbound ports.</strong> The AKS API server is private; CI
-        reaches it over Tailscale, and app traffic arrives through an
-        outbound-only Cloudflare Tunnel. Nothing is exposed to the internet.
+        reaches it over Tailscale, traffic arrives via an outbound-only Cloudflare
+        Tunnel. Nothing is exposed to the internet.
       </li>
       <li>
-        Helm releases run from GitHub Actions against the private API — no
-        public kube endpoint, no bastion, no jump host.
-      </li>
-      <li>
-        Evidence — render logs, kubectl output, signatures — lives in
-        <a href={`${repo}/tree/main/docs/evidence`}>docs/evidence</a>.
+        Timestamped proof of each run — cosign verify, <code>kubectl</code> output —
+        is committed to <a href={`${repo}/tree/main/docs/evidence`}>docs/evidence</a>.
       </li>
     </ul>
     <div class="cta-row" style="margin-top:1.5rem">

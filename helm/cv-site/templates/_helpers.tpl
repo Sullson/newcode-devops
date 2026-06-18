@@ -64,3 +64,32 @@ ServiceAccount name (fixed to cv-site per the workload-identity federation).
 {{- define "cv-site.serviceAccountName" -}}
 {{- default "cv-site" .Values.serviceAccount.name -}}
 {{- end -}}
+
+{{/*
+In-cluster observability (PUBLIC live-window view): Prometheus + anonymous
+Grafana, each selected independently. Azure Managed Prometheus/Grafana remain
+the production-grade variant; this is the no-login, browser-reachable view.
+*/}}
+{{- define "cv-site.prometheus.selectorLabels" -}}
+app.kubernetes.io/name: cv-site-prometheus
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+
+{{- define "cv-site.prometheus.labels" -}}
+helm.sh/chart: {{ include "cv-site.chart" . }}
+{{ include "cv-site.prometheus.selectorLabels" . }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/component: monitoring
+{{- end -}}
+
+{{- define "cv-site.grafana.selectorLabels" -}}
+app.kubernetes.io/name: cv-site-grafana
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+
+{{- define "cv-site.grafana.labels" -}}
+helm.sh/chart: {{ include "cv-site.chart" . }}
+{{ include "cv-site.grafana.selectorLabels" . }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/component: dashboard
+{{- end -}}

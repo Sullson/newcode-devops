@@ -1,24 +1,37 @@
 name: deploy-aks
 
-# THE on-demand AKS proof. This stands up the PRIVATE-API AKS cluster, deploys
-# cv-site via Helm, proves it serves over the Cloudflare Tunnel, records the
-# evidence into docs/evidence/, then ALWAYS tears the cluster back down.
+# The on-demand AKS proof, run as a daily LIVE WINDOW so anyone can open a
+# browser and see the whole platform working:
+#   * up   — stand up the PRIVATE-API cluster, deploy cv-site + in-cluster
+#            Grafana, verify the signed image, record evidence. Leaves it RUNNING.
+#   * down — tear the ephemeral cluster back down (cost control).
 #
-# Cost rationale: a private AKS + managed Prometheus/Grafana left running would
-# burn money 24/7 for a portfolio. So we spin up only to produce dated proof and
-# destroy in a final always() step. The cheap always-on front lives on SWA.
+# Default schedule: up 10:00, down 13:00 (Europe/Warsaw). GitHub cron is UTC and
+# has no DST, so these are set for CEST (summer, UTC+2). In winter (CET, UTC+1)
+# the window shifts to 09:00-12:00 local; adjust the crons if that matters.
+#
+# During the window:
+#   * app      https://aks-newcode.msulawiak.pl
+#   * metrics  https://grafana-newcode.msulawiak.pl   (anonymous, no login)
+# Outside it, the always-on front https://newcode.msulawiak.pl stays up on SWA.
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: "up = stand up the live window, down = tear it down"
+        type: choice
+        options: [up, down]
+        default: up
   schedule:
-    # Weekly Monday 05:00 UTC — keeps the evidence fresh without standing cost.
-    - cron: "0 5 * * 1"
+    - cron: "0 8 * * 1-5"  # 10:00 CEST — up (weekdays)
+    - cron: "0 11 * * 1-5" # 13:00 CEST — down (weekdays)
 
 permissions:
   contents: read
 
 concurrency:
-  # Serialize anything touching shared TF state (same group as infra.yml) so an
-  # infra apply and a proof run can never run terraform against cv.tfstate at once.
+  # Same group as infra.yml so nothing ever runs terraform against cv.tfstate
+  # concurrently (up, down, and an infra apply all serialize).
   group: terraform-state
   cancel-in-progress: false
 
@@ -31,19 +44,36 @@ env:
   IMAGE_NAME: cv-site
   RG: rg-newcode-cv
   AKS: aks-newcode-cv
-  APP_URL: https://aks.newcode.msulawiak.pl
+  APP_URL: https://aks-newcode.msulawiak.pl
+  GRAFANA_URL: https://grafana-newcode.msulawiak.pl
 
 jobs:
-  proof:
-    name: provision-deploy-prove-destroy
+  # Resolve which action to run: the dispatch input, or up/down by cron.
+  decide:
+    runs-on: ubuntu-latest
+    outputs:
+      action: ${{ steps.d.outputs.action }}
+    steps:
+      - id: d
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "action=${{ inputs.action }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 11 * * 1-5" ]; then
+            echo "action=down" >> "$GITHUB_OUTPUT"
+          else
+            echo "action=up" >> "$GITHUB_OUTPUT"
+          fi
+
+  up:
+    needs: decide
+    if: needs.decide.outputs.action == 'up'
+    name: stand-up-live-window
     runs-on: ubuntu-latest
     environment: production
     permissions:
       contents: write # commit evidence back
       id-token: write # OIDC to Azure
     env:
-      # Terraform azurerm+cloudflare auth (OIDC, no SP secret). ARM_USE_OIDC is
-      # set at workflow level; these say which identity, where, and the CF token.
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -71,8 +101,7 @@ jobs:
         run: terraform init -backend-config="key=cv.tfstate"
 
       # Stand up the EPHEMERAL AKS stack (deploy_aks=true) on top of the always-on
-      # persistent infra. The Cloudflare tunnel, ACR, Key Vault, SWA, identities
-      # and monitoring are persistent and are NOT touched by the teardown below.
+      # persistent infra (ACR, Key Vault, SWA, identities, Cloudflare tunnel/DNS).
       - name: terraform apply (deploy_aks=true)
         working-directory: terraform
         run: terraform apply -auto-approve -input=false -var deploy_aks=true
@@ -85,8 +114,8 @@ jobs:
           echo "operator_host=$(terraform output -raw tailscale_operator_hostname)" >> "$GITHUB_OUTPUT"
 
       # Push the real Cloudflare tunnel token into Key Vault so the in-cluster
-      # cloudflared (CSI + Workload Identity) can dial out. The token flows
-      # TF state -> Key Vault -> CSI -> pod env; it never touches the repo.
+      # cloudflared (CSI + Workload Identity) can dial out. TF state -> Key Vault
+      # -> CSI -> pod; it never touches the repo.
       - name: Sync tunnel token to Key Vault
         working-directory: terraform
         run: |
@@ -95,12 +124,9 @@ jobs:
             --value "$(terraform output -raw tunnel_token)" >/dev/null
 
       # Bootstrap problem: a PRIVATE-API cluster has no public endpoint, so we
-      # can't kubectl in to install the operator that *gives* us access. We break
-      # the loop with `az aks command invoke` — Azure runs the helm install
-      # server-side over its authenticated control-plane channel (still no public
-      # API exposure). Once the operator is up, its API-server proxy gives CI
-      # ongoing kubectl/helm over the tailnet. OAuth values are GitHub secrets,
-      # interpolated into the command at runtime, never written to the repo.
+      # can't kubectl in to install the operator that *gives* us access. Break the
+      # loop with `az aks command invoke` — Azure runs the helm install server-side
+      # over its authenticated control-plane channel (still no public API exposure).
       - name: Bootstrap Tailscale operator (private cluster, via command invoke)
         env:
           TS_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
@@ -108,13 +134,10 @@ jobs:
           OPERATOR_HOST: ${{ steps.tf.outputs.operator_host }}
         run: |
           # Single line: `az aks command invoke --command` runs the string in a
-          # server-side `sh -c`, where a bare newline ENDS the command. The three
-          # helm calls are chained with `&&`; the upgrade flags stay on one line so
-          # none are orphaned. Do not re-wrap this onto multiple lines.
+          # server-side `sh -c`, where a bare newline ENDS the command. Keep the
+          # three helm calls chained with `&&` on ONE line.
           az aks command invoke -g "$RG" -n "$AKS" --command "helm repo add tailscale https://pkgs.tailscale.com/helmcharts && helm repo update && helm upgrade --install tailscale-operator tailscale/tailscale-operator --namespace tailscale --create-namespace --set-string oauth.clientId=$TS_ID --set-string oauth.clientSecret=$TS_SECRET --set apiServerProxyConfig.mode=true --set-string operatorConfig.hostname=$OPERATOR_HOST --wait --timeout 5m"
 
-      # Join the tailnet so kubectl/helm can reach the PRIVATE AKS API through
-      # the operator's API-server proxy. Zero inbound ports on the cluster.
       - name: Setup Tailscale
         uses: ./.github/actions/setup-tailscale
         with:
@@ -126,10 +149,6 @@ jobs:
         # TODO: ratchet to SHA (Renovate)
         uses: azure/setup-helm@v4
 
-      # `tailscale configure kubeconfig` writes a kubeconfig that targets the
-      # operator proxy and authenticates via the tailnet identity (no kubeconfig
-      # secret, no public API). Retry: the operator device takes a moment to
-      # register in the tailnet after the command-invoke install above.
       - name: Configure kubeconfig via Tailscale operator proxy
         env:
           OPERATOR_HOST: ${{ steps.tf.outputs.operator_host }}
@@ -148,8 +167,8 @@ jobs:
         uses: sigstore/cosign-installer@v3
 
       # Supply-chain gate: verify the image's keyless cosign signature BEFORE we
-      # deploy it. A tampered/unsigned image fails the job here. Output is kept
-      # for the evidence file.
+      # deploy it. A tampered/unsigned image fails the job here. (?i) so the owner
+      # slug casing (Sullson) does not break the match. Output kept for evidence.
       - name: Cosign verify image (gate)
         id: cosign
         run: |
@@ -169,26 +188,29 @@ jobs:
             --set keyVault.tenantId="${{ secrets.AZURE_TENANT_ID }}" \
             --wait --timeout 10m
 
-      # Wait on BOTH the app and the cloudflared ingress — the public smoke test
-      # below depends on the tunnel being up, not just cv-site.
+      # Wait on app, the cloudflared ingress, and the in-cluster monitoring stack.
       - name: Wait for rollout
         run: |
-          kubectl rollout status deployment/"$HELM_RELEASE" -n "$HELM_NAMESPACE" --timeout=5m
-          kubectl rollout status deployment/"$HELM_RELEASE"-cloudflared -n "$HELM_NAMESPACE" --timeout=5m
+          for d in "$HELM_RELEASE" "$HELM_RELEASE"-cloudflared "$HELM_RELEASE"-prometheus "$HELM_RELEASE"-grafana; do
+            kubectl rollout status deployment/"$d" -n "$HELM_NAMESPACE" --timeout=5m
+          done
 
-      # Smoke test the live app through the Cloudflare Tunnel (public DNS),
-      # with retries — the tunnel/DNS can take a moment after rollout.
-      - name: Smoke test /healthz
+      # Smoke test the live app through the tunnel (gating), with retries while
+      # tunnel/DNS settle. Grafana is checked best-effort (recorded, not gating).
+      - name: Smoke test
         id: smoke
         run: |
           code=000
           for i in $(seq 1 20); do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$APP_URL/healthz" || true)
-            echo "attempt $i: HTTP $code"
+            echo "app attempt $i: HTTP $code"
             [ "$code" = "200" ] && break
             sleep 15
           done
           echo "status=$code" >> "$GITHUB_OUTPUT"
+          gcode=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$GRAFANA_URL/api/health" || true)
+          echo "grafana_status=$gcode" >> "$GITHUB_OUTPUT"
+          echo "grafana /api/health: HTTP $gcode"
           [ "$code" = "200" ]
 
       - name: Capture evidence
@@ -201,9 +223,9 @@ jobs:
             echo "# AKS proof — ${ts}"
             echo
             echo "- Commit: \`${GITHUB_SHA}\` (image tag \`latest\`)"
-            echo "- App URL: ${APP_URL}"
-            echo "- /healthz HTTP status: \`${{ steps.smoke.outputs.status }}\`"
-            echo "- Teardown: the ephemeral AKS stack is removed in this workflow's final always() step (\`terraform apply -var deploy_aks=false\`); the always-on front stays up."
+            echo "- App URL: ${APP_URL}  (/healthz HTTP \`${{ steps.smoke.outputs.status }}\`)"
+            echo "- Metrics URL: ${GRAFANA_URL}  (/api/health HTTP \`${{ steps.smoke.outputs.grafana_status }}\`)"
+            echo "- Window: this cluster is left RUNNING; the \`down\` run (13:00 CEST or manual) tears it down. The always-on front stays up."
             echo
             echo "## cosign verify (signature gate, before deploy)"
             echo '```'
@@ -219,8 +241,6 @@ jobs:
             echo '```'
             helm status "$HELM_RELEASE" -n "$HELM_NAMESPACE" 2>&1
             echo '```'
-            echo
-            echo "<!-- Optional: attach an Azure Managed Grafana RED-dashboard screenshot here. -->"
           } > "$out"
           echo "EVIDENCE_FILE=$out" >> "$GITHUB_ENV"
 
@@ -232,17 +252,47 @@ jobs:
           git add "$EVIDENCE_FILE"
           git diff --cached --quiet && { echo "no evidence change"; exit 0; }
           git commit -m "evidence: AKS proof run ${{ github.run_id }}"
-          # Rebase onto latest main to avoid losing the evidence on a busy branch.
           git pull --rebase origin main || true
           git push origin HEAD:main
 
-      # ALWAYS tear down ONLY the ephemeral AKS stack — even if anything above
-      # failed — to avoid standing cost. This is `apply -var deploy_aks=false`,
-      # NOT a full destroy: it removes the cluster + its cluster-bound role,
-      # credential and DCR association, and leaves the always-on front (SWA, DNS,
-      # ACR, Key Vault, identities, monitoring, Cloudflare tunnel) running.
-      - name: Tear down AKS (deploy_aks=false, always)
-        if: always()
+  down:
+    needs: decide
+    if: needs.decide.outputs.action == 'down'
+    name: tear-down-live-window
+    runs-on: ubuntu-latest
+    # NO `environment: production` on purpose: teardown must run UNATTENDED (cost
+    # control). If production carries required reviewers, gating teardown on it
+    # would leave the cluster running. The Azure OIDC secrets must therefore be
+    # available at repo (or org) level, not only on the production environment.
+    permissions:
+      id-token: write # OIDC to Azure
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CF_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Azure login (OIDC)
+        # TODO: ratchet to SHA (Renovate)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+
+      # Remove ONLY the ephemeral AKS stack (cluster + cluster-bound role,
+      # credential, DCR association); the always-on front (SWA, DNS, ACR, Key
+      # Vault, identities, monitoring, Cloudflare tunnel) stays up.
+      - name: Tear down AKS (deploy_aks=false)
         working-directory: terraform
         run: |
           terraform init -backend-config="key=cv.tfstate" -input=false

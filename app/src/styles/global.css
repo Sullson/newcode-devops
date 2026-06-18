@@ -164,6 +164,46 @@ code {
   background: var(--bg-elev);
 }
 
+/* Live-status badge (hero). Default = "off"; JS upgrades to "on". */
+.live {
+  margin: 0 0 1.5rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--fg-muted);
+  border-radius: 10px;
+}
+.live--on {
+  border-left-color: var(--ok);
+  background: rgba(74, 222, 128, 0.06);
+}
+.live__text {
+  margin: 0 0 0.9rem;
+  color: var(--fg-muted);
+  max-width: 64ch;
+}
+.live--on .live__text {
+  color: var(--fg);
+}
+.live__dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  background: var(--fg-muted);
+  vertical-align: middle;
+}
+.live--on .live__dot {
+  background: var(--ok);
+  box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.6);
+  animation: live-pulse 2s infinite;
+}
+@keyframes live-pulse {
+  70% { box-shadow: 0 0 0 0.5rem rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
 /* Prose / lists */
 .lead {
   color: var(--fg-muted);
@@ -300,5 +340,8 @@ footer.site .wrap {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .live--on .live__dot {
+    animation: none;
   }
 }
