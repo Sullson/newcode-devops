@@ -17,22 +17,28 @@ _Last updated: 2026-06-18._
 - **Front is live**: `https://newcode.msulawiak.pl` — Azure Static Web Apps, real CV
   content, valid TLS (SWA-managed cert).
 - **GitHub is configured**: repo secrets (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`,
-  `AZURE_SUBSCRIPTION_ID`, `CF_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `SWA_DEPLOY_TOKEN`)
-  and a `production` environment.
+  `AZURE_SUBSCRIPTION_ID`, `CF_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `SWA_DEPLOY_TOKEN`,
+  `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`) and a `production` environment.
+- **The AKS live window runs end-to-end.** First successful run 2026-06-18 (manual
+  `action=up`): `deploy_aks=true` stands up the private AKS cluster + Managed
+  Prometheus/Grafana, bootstraps the Tailscale operator API-server proxy, cosign-verifies
+  `:latest` (gate), and Helm-installs `cv-site` (app + cloudflared tunnel + in-cluster
+  Prometheus/Grafana). During the window `https://aks-newcode.msulawiak.pl/healthz` and
+  `https://grafana-newcode.msulawiak.pl/api/health` both return 200 and the front's "LIVE"
+  badge lights up. `docs/evidence/` holds the first `aks-proof-*.md` (cosign output +
+  `kubectl get pods` + `helm status`), committed back by the workflow.
+- **Tailscale is configured**: one OAuth client (scopes `devices:core` + `auth_keys`, tags
+  `tag:ci` + `tag:k8s-operator`) plus the tailnet ACL (mutual tag ownership + the kubernetes
+  grant — see gotcha below).
 
 ## Not done yet ⏳
-- **The AKS live window has never been run.** `deploy-aks` (up/down, daily 10:00–13:00
-  Europe/Warsaw + manual) needs Tailscale, which is **not** configured:
-  1. A Tailscale **OAuth client** tagged `tag:ci` (scope `devices:write`).
-  2. An **ACL** with `tagOwners` for `tag:ci` + `tag:k8s-operator`, and a grant giving
-     `tag:ci` the `tailscale.com/cap/kubernetes` cap impersonating `system:masters` on
-     `tag:k8s-operator`. (Snippet in [RUNBOOK.md](RUNBOOK.md).)
-  3. GitHub secrets `TS_OAUTH_CLIENT_ID` + `TS_OAUTH_SECRET`.
-  Then: `gh workflow run deploy-aks.yml -f action=up`. During the window
-  `aks-newcode.msulawiak.pl` (app) and `grafana-newcode.msulawiak.pl` (anonymous
-  Grafana) go live; the front's "LIVE" badge lights up automatically.
-- **`docs/evidence/` is still empty** — the first successful `deploy-aks` up-run commits
-  the first `aks-proof-*.md`.
+- **Only the manual `action=up`/`down` path is proven; a scheduled (cron) run has not yet
+  been observed.** The crons (`0 8` up / `0 11` down, `* * 1-5`, CEST) are wired.
+- **Quality follow-ups (not deployment blockers):** `helm lint` is not yet a CI gate; the
+  chart deploys `:latest` rather than the immutable `:sha` (cosign also verifies `:latest`, a
+  TOCTOU gap); `SLO.md` still describes the Managed-Grafana alerting as if always-on; most
+  third-party Actions are `@tag`-pinned pending Renovate. (RUNBOOK §5 still shows the old
+  single-tag Tailscale snippet — superseded by the mutual-ownership gotcha below.)
 
 ## Gotchas / decisions for whoever resumes
 - **First `terraform apply` needs an RG import.** `scripts/bootstrap-backend.sh` creates
@@ -45,6 +51,27 @@ _Last updated: 2026-06-18._
   (the state account is bootstrap-created outside Terraform and CI reads state over AAD, so
   the grant lives outside the Terraform run). The Key Vault tunnel-token secret is written by
   the `deploy-aks` workflow, not Terraform.
+- **Tailscale: the shared OAuth client needs *mutual tag ownership*.** One OAuth client
+  (scopes `devices:core` + `auth_keys`) mints both the CI node (`tag:ci`) and the operator
+  (`tag:k8s-operator`). An OAuth client may apply tag X only if one of *its own* tags is in
+  `tagOwners[X]` — `[]` and `["autogroup:admin"]` both fail (the client is not a user). The
+  tailnet ACL therefore needs `"tag:ci": ["autogroup:admin","tag:k8s-operator"]` and
+  `"tag:k8s-operator": ["autogroup:admin","tag:ci"]`, plus a grant
+  `{src:[tag:ci], dst:[tag:k8s-operator], app:{"tailscale.com/cap/kubernetes":[{impersonate:{groups:[system:masters]}}]}}`
+  and network reachability `tag:ci → tag:k8s-operator:443`. Symptom when wrong:
+  `400 "requested tags [...] are invalid or not permitted"`. NB `tailscale/github-action`
+  marks its step **success** even when `tailscale up` fails every retry — read the step log.
+- **The operator is bootstrapped via the runCommand ARM REST API, not `az aks command
+  invoke`.** The CLI wrapper's long-running-operation poller is broken across az versions
+  ("Operation returned an invalid status 'OK'/'Not Found'") and swallows the result; the REST
+  call (`POST …/runCommand` with a `clusterToken`, then poll `commandResults`) surfaces
+  `exitCode`/`logs`/`reason` — that is how the real failure (an Unschedulable helper pod) was
+  found.
+- **Node pool is 2× `Standard_D2s_v3`.** `Standard_B2s`/`B2s_v2` are unavailable / zero-quota
+  in `swedencentral` for this subscription; the `D*sv3` family has quota. A single 2-vCPU node
+  cannot even schedule the `command invoke` helper pod alongside the managed addons (Managed
+  Prometheus + Container Insights + Cilium + CSI), hence `node_count = 2`. Managed Grafana
+  needs `grafana_major_version = 12`.
 - **A fresh subscription needs resource providers registered** (else `az`/TF fail, often
   with a misleading `SubscriptionNotFound`): Microsoft.Storage, ContainerRegistry,
   KeyVault, ContainerService, ManagedIdentity, OperationalInsights, Monitor, Dashboard,
