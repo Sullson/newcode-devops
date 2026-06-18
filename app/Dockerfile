@@ -16,6 +16,13 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
 # nginx-unprivileged already runs as uid 101 (nginx) and listens >1024 by design,
 # which matches our :8080 config and a read-only-friendly, non-root posture.
 
+# Patch OS packages to clear fixable base-image CVEs — the CI Trivy gate fails the
+# build on HIGH/CRITICAL (--ignore-unfixed). Needs root; the image's default
+# non-root user (101) is restored immediately after.
+USER root
+RUN apk upgrade --no-cache
+USER 101
+
 # Replace the default config with ours (8080 site + 8081 stub_status).
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /app/dist /usr/share/nginx/html
