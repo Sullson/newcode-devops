@@ -56,13 +56,13 @@ variable "kv_purge_protection" {
 }
 
 variable "node_count" {
-  description = "System node pool size. One node is enough for this demo cluster."
+  description = "System node pool size. Two nodes: the cluster's managed addons (Managed Prometheus + Container Insights + Cilium + CSI) plus the `az aks command invoke` helper pod, the Tailscale operator and the app stack do not all fit on a single 2-vCPU node."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "vm_size" {
-  description = "VM SKU for the system node pool. Small/cheap by design. D2s_v3: the B-series-v2 family has zero vCPU quota in this subscription/region, while the D*sv3 family is available (2 vCPU / 8 GiB, comfortably fits the proof stack on one node)."
+  description = "VM SKU for the system node pool. D2s_v3 (2 vCPU / 8 GiB): the B-series-v2 family has zero vCPU quota in this subscription/region, while the D*sv3 family is available. node_count carries the sizing for the full proof stack."
   type        = string
   default     = "Standard_D2s_v3"
 }

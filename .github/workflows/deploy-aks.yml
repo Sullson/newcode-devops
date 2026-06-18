@@ -123,20 +123,58 @@ jobs:
             --name cloudflare-tunnel-token \
             --value "$(terraform output -raw tunnel_token)" >/dev/null
 
-      # Bootstrap problem: a PRIVATE-API cluster has no public endpoint, so we
-      # can't kubectl in to install the operator that *gives* us access. Break the
-      # loop with `az aks command invoke` — Azure runs the helm install server-side
-      # over its authenticated control-plane channel (still no public API exposure).
-      - name: Bootstrap Tailscale operator (private cluster, via command invoke)
+      # Bootstrap problem: a PRIVATE-API cluster has no public endpoint, so we can't
+      # kubectl in to install the operator that *gives* us access. Azure's runCommand
+      # API runs the helm install server-side over its authenticated control-plane
+      # channel (still no public API exposure). We call the REST API directly instead
+      # of `az aks command invoke`: that CLI wrapper's long-running-operation poller
+      # is broken across az versions — it reports "Operation returned an invalid status
+      # 'OK'/'Not Found'" and swallows the real result (e.g. a pod scheduling failure),
+      # whereas commandResults.reason/logs below surface exactly what happened.
+      - name: Bootstrap Tailscale operator (private cluster, via runCommand REST)
         env:
           TS_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           TS_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
           OPERATOR_HOST: ${{ steps.tf.outputs.operator_host }}
         run: |
-          # Single line: `az aks command invoke --command` runs the string in a
-          # server-side `sh -c`, where a bare newline ENDS the command. Keep the
-          # three helm calls chained with `&&` on ONE line.
-          az aks command invoke -g "$RG" -n "$AKS" --command "helm repo add tailscale https://pkgs.tailscale.com/helmcharts && helm repo update && helm upgrade --install tailscale-operator tailscale/tailscale-operator --namespace tailscale --create-namespace --set-string oauth.clientId=$TS_ID --set-string oauth.clientSecret=$TS_SECRET --set apiServerProxyConfig.mode=true --set-string operatorConfig.hostname=$OPERATOR_HOST --wait --timeout 5m"
+          set -euo pipefail
+          CID=$(az aks show -g "$RG" -n "$AKS" --query id -o tsv)
+          ARM=$(az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv)
+          # AAD-enabled clusters require a clusterToken: an AAD token for the AKS server app.
+          CTOK=$(az account get-access-token --resource 6dae42f8-4368-4678-94ff-3960e28e3630 --query accessToken -o tsv)
+          # One server-side `sh -c`: keep the three helm calls chained with `&&` on one line.
+          CMD="helm repo add tailscale https://pkgs.tailscale.com/helmcharts && helm repo update && helm upgrade --install tailscale-operator tailscale/tailscale-operator --namespace tailscale --create-namespace --set-string oauth.clientId=$TS_ID --set-string oauth.clientSecret=$TS_SECRET --set apiServerProxyConfig.mode=true --set-string operatorConfig.hostname=$OPERATOR_HOST --wait --timeout 5m"
+          BODY=$(jq -nc --arg cmd "$CMD" --arg tok "$CTOK" '{command:$cmd, clusterToken:$tok}')
+          HDR=$(mktemp); BOUT=$(mktemp)
+          code=$(curl -sS -D "$HDR" -o "$BOUT" -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $ARM" -H "Content-Type: application/json" \
+            --data "$BODY" \
+            "https://management.azure.com${CID}/runCommand?api-version=2024-09-01")
+          if [ "$code" != "202" ] && [ "$code" != "200" ]; then
+            echo "runCommand POST failed: HTTP $code"; cat "$BOUT"; exit 1
+          fi
+          RESULT=$(grep -i '^location:' "$HDR" | head -1 | awk '{print $2}' | tr -d '\r')
+          rm -f "$HDR" "$BOUT"
+          [ -n "$RESULT" ] || { echo "runCommand returned no result URL"; exit 1; }
+          # Poll up to ~8 min: the in-command `helm --wait` can take its full 5m timeout.
+          for i in $(seq 1 48); do
+            R=$(curl -sS -H "Authorization: Bearer $ARM" "$RESULT" || true)
+            PS=$(printf '%s' "$R" | jq -r '.properties.provisioningState // "Running"' 2>/dev/null || echo Running)
+            echo "operator runCommand: $PS (poll $i)"
+            case "$PS" in
+              Succeeded)
+                printf '%s' "$R" | jq -r '.properties.logs // ""'
+                EC=$(printf '%s' "$R" | jq -r '.properties.exitCode // 0')
+                [ "$EC" = "0" ] || { echo "operator install exited non-zero ($EC)"; exit 1; }
+                exit 0 ;;
+              Failed|Canceled)
+                echo "reason: $(printf '%s' "$R" | jq -r '.properties.reason // ""')"
+                printf '%s' "$R" | jq -r '.properties.logs // ""'
+                exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "operator runCommand timed out"; exit 1
 
       - name: Setup Tailscale
         uses: ./.github/actions/setup-tailscale
