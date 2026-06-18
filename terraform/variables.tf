@@ -67,13 +67,6 @@ variable "vm_size" {
   default     = "Standard_B2s"
 }
 
-variable "cloudflare_tunnel_token_placeholder" {
-  description = "Initial Key Vault value for the tunnel token. The real token is the sensitive output of the cloudflare tunnel data source and is set out-of-band at deploy; this keeps the secret resource declarable without a literal."
-  type        = string
-  default     = "REPLACE_ME"
-  sensitive   = true
-}
-
 variable "tags" {
   description = "Common tags applied to all resources."
   type        = map(string)

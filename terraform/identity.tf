@@ -31,6 +31,16 @@ resource "azurerm_role_assignment" "gh_contributor_rg" {
   principal_id         = azurerm_user_assigned_identity.gh_oidc.principal_id
 }
 
+# Contributor excludes Microsoft.Authorization/* — it cannot create role assignments.
+# The deploy_aks apply creates several (gh_aks_admin, kubelet_acrpull, grafana_*, and
+# the KV deployer grant), so the CI identity also needs roleAssignments/write. Scoped
+# to this RG (not the subscription) to keep the blast radius bounded.
+resource "azurerm_role_assignment" "gh_user_access_admin_rg" {
+  scope                = azurerm_resource_group.rg.id
+  role_definition_name = "User Access Administrator"
+  principal_id         = azurerm_user_assigned_identity.gh_oidc.principal_id
+}
+
 resource "azurerm_role_assignment" "gh_acrpush" {
   scope                = azurerm_container_registry.acr.id
   role_definition_name = "AcrPush"
@@ -47,10 +57,10 @@ resource "azurerm_role_assignment" "gh_aks_admin" {
 }
 
 # NOTE: the CI identity's Key Vault data-plane access (writing the tunnel token at
-# deploy) is granted by `kv_secrets_officer_deployer` in keyvault.tf via the
-# *current caller* (which IS this gh_oidc MI in CI). A separate Key Vault
-# Administrator grant here would (a) over-privilege the CI identity and (b) create
-# a duplicate role assignment that collides with that one on CI applies.
+# deploy) is granted by `kv_secrets_officer_deployer` in keyvault.tf, pinned to this
+# gh_oidc MI. Terraform no longer manages the secret itself (the deploy workflow is
+# its sole writer), so an apply never reads Key Vault data-plane — avoiding the
+# refresh-before-grant deadlock when CI applies after a local first apply.
 
 # --- App workload identity: federated to the AKS OIDC issuer, reads Key Vault ---
 resource "azurerm_user_assigned_identity" "cv_app" {

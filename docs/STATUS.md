@@ -39,6 +39,12 @@ _Last updated: 2026-06-18._
   `rg-newcode-cv` (to host the state account); Terraform also manages that RG, so import
   it before the first apply or it errors "already exists":
   `terraform -chdir=terraform import azurerm_resource_group.rg /subscriptions/<sub>/resourceGroups/rg-newcode-cv`.
+- **CI identity role set.** `id-gh-oidc-newcode-cv` holds on `rg-newcode-cv`: Contributor,
+  User Access Administrator (codified in `identity.tf`), and AcrPush on the ACR; plus
+  `Storage Blob Data Contributor` on the state account `stnewcodecvtf`, granted out-of-band
+  (the state account is bootstrap-created outside Terraform and CI reads state over AAD, so
+  the grant lives outside the Terraform run). The Key Vault tunnel-token secret is written by
+  the `deploy-aks` workflow, not Terraform.
 - **A fresh subscription needs resource providers registered** (else `az`/TF fail, often
   with a misleading `SubscriptionNotFound`): Microsoft.Storage, ContainerRegistry,
   KeyVault, ContainerService, ManagedIdentity, OperationalInsights, Monitor, Dashboard,
