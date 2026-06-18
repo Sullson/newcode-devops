@@ -3,11 +3,12 @@ interface Props {
   id: string;
   eyebrow?: string;
   title: string;
+  class?: string;
 }
-const { id, eyebrow, title } = Astro.props;
+const { id, eyebrow, title, class: className } = Astro.props;
 ---
 
-<section class="section" id={id}>
+<section class:list={['section', className]} id={id}>
   <div class="wrap">
     {eyebrow && <p class="section__eyebrow">{eyebrow}</p>}
     <h2 class="section__title">{title}</h2>

@@ -2,42 +2,64 @@
 import Layout from '../layouts/Layout.astro';
 import Section from '../components/Section.astro';
 import EvidenceTable from '../components/EvidenceTable.astro';
+import LatestRun from '../components/LatestRun.astro';
 
 const repo = 'https://github.com/sullson/newcode-devops';
+const liveApp = 'https://aks-newcode.msulawiak.pl';
+const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
 ---
 
 <Layout>
+  <!-- Ribbon: only shown when this very page is served from the AKS cluster
+       (same-origin /proof.json resolves). It's how the live copy differs from
+       the always-on Static Web Apps front. -->
+  <div id="aks-ribbon" class="ribbon" hidden>
+    <span class="ribbon__dot"></span>
+    You're on the live copy — served from AKS, node <span id="rb-node">…</span>
+  </div>
+
   <!-- (1) Hero -->
   <header class="hero">
     <div class="wrap">
       <h1>
         <span class="accent">Senior DevOps</span> for production AI infrastructure
       </h1>
-      <p>
-        I build and run production-grade <strong>Azure / AKS</strong> platforms.
-        Everything below lives in this repo and actually runs — not a list of
-        skills, the working proof.
+      <p class="lead-deck">
+        I build and run production Azure and AKS platforms. The site you're
+        reading is deployed by the same pipelines it documents — the code is all
+        in this repo.
       </p>
 
-      <!-- Self-explaining live status. Server-rendered state = "asleep" (with the
-           window + working links); the inline script flips it to "LIVE" if the
-           on-demand cluster answers /healthz. -->
-      <div
-        id="live"
-        class="live live--off"
-        data-app="https://aks-newcode.msulawiak.pl"
-      >
-        <span class="live__dot" aria-hidden="true"></span>
-        <p class="live__text">
-          <strong>The live platform is asleep right now.</strong> The full
-          private-AKS cluster — app, signed image, real metrics — runs daily
-          <strong>10:00–13:00 (Europe/Warsaw)</strong>, then tears itself down so
-          it costs nothing idle. Catch it in the window, or ask me to spin it up.
+      <!-- Live status. Server-rendered "asleep"; the inline script flips it to
+           "live" and fills the proof panel if the cluster answers. -->
+      <div id="live" class="live" data-app={liveApp}>
+        <p class="live__head">
+          <span class="live__dot" aria-hidden="true"></span>
+          <span id="live-label">Cluster offline</span>
         </p>
+        <p class="live__text" id="live-text">
+          The full private-AKS platform — the app, the signed image, real
+          metrics — runs on weekdays in four 45-minute windows: 10:00, 12:00,
+          14:00 and 16:00 (Europe/Warsaw). Outside those it's torn down, so it
+          costs nothing when idle. Catch it in a window, or ask me and I'll bring
+          it up.
+        </p>
+
+        <!-- Filled live from /proof.json (Downward API). Hidden until then. -->
+        <div class="proof" id="proof-panel" aria-live="polite">
+          <dl class="proof-grid">
+            <dt>node</dt><dd id="pf-node">—</dd>
+            <dt>pod</dt><dd id="pf-pod">—</dd>
+            <dt>namespace</dt><dd id="pf-ns">—</dd>
+            <dt>cluster API</dt><dd id="pf-api">—</dd>
+            <dt>image</dt><dd id="pf-digest">—</dd>
+          </dl>
+        </div>
+
         <div class="live__links cta-row">
-          <a class="btn btn--primary" href="https://aks-newcode.msulawiak.pl">Live app&nbsp;↗</a>
-          <a class="btn btn--ghost" href="https://grafana-newcode.msulawiak.pl">Live metrics&nbsp;↗</a>
-          <a class="btn btn--ghost" href={repo}>Source code&nbsp;↗</a>
+          <a class="btn btn--primary" href={liveApp} target="_blank" rel="noopener noreferrer">Open the live app ↗</a>
+          <a class="btn btn--ghost" href={liveGrafana} target="_blank" rel="noopener noreferrer">Live metrics ↗</a>
+          <a class="btn btn--ghost" href={repo} target="_blank" rel="noopener noreferrer">Source ↗</a>
         </div>
       </div>
 
@@ -47,226 +69,290 @@ const repo = 'https://github.com/sullson/newcode-devops';
         <span class="badge">Terraform</span>
         <span class="badge">Helm</span>
         <span class="badge">GitHub Actions</span>
-        <span class="badge">EU / GDPR</span>
+        <span class="badge badge--ok">EU / GDPR</span>
       </div>
 
-      <script is:inline>
-        // Flip the badge to "LIVE" if the on-demand AKS app answers its
-        // CORS-open /healthz. One fetch to our own cluster — no framework,
-        // no third party, no tracker. Off-window (or JS off) it stays "asleep".
+      <script is:inline define:vars={{ liveApp }}>
+        // One job: tell whether the AKS cluster is up, and if so show which pod
+        // and node are serving. Two cases:
+        //   - same-origin /proof.json resolves -> THIS page is the AKS copy.
+        //   - else the always-on front asks the cluster cross-origin.
+        // /proof.json is rendered inside the pod from the Downward API and is
+        // CORS-open; it simply doesn't exist on the static front. No framework,
+        // no third party, no tracker. Off-window it stays "asleep".
         (function () {
-          var el = document.getElementById("live");
-          if (!el || !window.fetch) return;
-          var ctrl = new AbortController();
-          var t = setTimeout(function () { ctrl.abort(); }, 4000);
-          fetch(el.dataset.app + "/healthz", { cache: "no-store", signal: ctrl.signal })
-            .then(function (r) {
-              clearTimeout(t);
-              if (!r.ok) return;
-              el.className = "live live--on";
-              el.querySelector(".live__text").innerHTML =
-                "<strong>LIVE right now.</strong> The private-AKS cluster is up — " +
-                "the app and the metrics below are served straight from it, no login.";
-            })
-            .catch(function () { clearTimeout(t); });
+          var live = document.getElementById("live");
+          if (!live || !window.fetch) return;
+
+          function get(url) {
+            var ctrl = new AbortController();
+            var t = setTimeout(function () { ctrl.abort(); }, 4000);
+            return fetch(url, { cache: "no-store", signal: ctrl.signal })
+              .then(function (r) {
+                clearTimeout(t);
+                if (!r.ok) throw new Error("bad status");
+                return r.json();
+              });
+          }
+
+          function set(id, val) {
+            var el = document.getElementById(id);
+            if (el && val) el.textContent = val;
+          }
+
+          function render(p, servedHere) {
+            live.classList.add("live--on");
+            document.getElementById("live-label").textContent = servedHere
+              ? "Live — served from this AKS pod"
+              : "Live — the AKS cluster is up";
+            document.getElementById("live-text").textContent = servedHere
+              ? "You're on the cluster right now. These values come straight from this pod's Kubernetes Downward API, not from the page."
+              : "The private-AKS cluster is up. The app and the metrics below are served straight from it, no login. Open the live app to land on the cluster itself.";
+            set("pf-node", p.node);
+            set("pf-pod", p.pod);
+            set("pf-ns", p.namespace);
+            set("pf-api", p.apiDomain || (p.cluster ? p.cluster : ""));
+            set("pf-digest", p.digest || p.image);
+
+            if (servedHere) {
+              document.documentElement.classList.add("is-aks-served");
+              var rb = document.getElementById("aks-ribbon");
+              if (rb) {
+                rb.hidden = false;
+                if (p.node) document.getElementById("rb-node").textContent = p.node;
+              }
+            }
+          }
+
+          // Same-origin first (are we ON the cluster?), then ask it cross-origin.
+          get("/proof.json")
+            .then(function (p) { render(p, true); })
+            .catch(function () {
+              get(liveApp + "/proof.json")
+                .then(function (p) { render(p, false); })
+                .catch(function () { /* asleep */ });
+            });
         })();
       </script>
     </div>
   </header>
 
-  <!-- (2) This site is the proof -->
-  <Section id="proof" eyebrow="Not a slide deck" title="This site is the proof">
+  <!-- (2) How this page is served -->
+  <Section id="served" eyebrow="Static Web Apps + AKS" title="How this page is served">
     <p class="lead">
-      You're reading the always-on front (Azure Static Web Apps). The <em>same</em>
-      image is deployed on demand to a real, private <strong>AKS</strong> cluster
-      via Helm — that's the daily live window above.
+      Right now you're on the always-on front, served by Azure Static Web Apps.
+      The same build runs on a private AKS cluster, deployed by Helm, during the
+      live windows above.
     </p>
     <ul class="notes">
       <li>
-        <strong>See it yourself in the window:</strong> the
-        <a href="https://aks-newcode.msulawiak.pl">app</a> and a live
-        <a href="https://grafana-newcode.msulawiak.pl">Grafana dashboard</a>
-        (no login) are both served from the cluster.
+        In a live window, the <a href={liveApp} target="_blank" rel="noopener noreferrer">app</a>
+        and a <a href={liveGrafana} target="_blank" rel="noopener noreferrer">Grafana dashboard</a>
+        are both served from the cluster, no login.
       </li>
       <li>
-        <strong>Zero inbound ports.</strong> The AKS API server is private; CI
-        reaches it over Tailscale, traffic arrives via an outbound-only Cloudflare
-        Tunnel. Nothing is exposed to the internet.
+        No inbound ports. The AKS API server is private; CI reaches it over
+        Tailscale, and app traffic comes in through an outbound-only Cloudflare
+        Tunnel. There's no LoadBalancer, Ingress or NodePort to scan.
       </li>
       <li>
-        Timestamped proof of each run — cosign verify, <code>kubectl</code> output —
-        is committed to <a href={`${repo}/tree/main/docs/evidence`}>docs/evidence</a>.
+        Every run writes its own proof — cosign verify and <code>kubectl</code>
+        output — to
+        <a href={`${repo}/tree/main/docs/evidence`} target="_blank" rel="noopener noreferrer">docs/evidence</a>.
       </li>
     </ul>
+
+    <div style="margin-top:1.75rem">
+      <LatestRun />
+    </div>
+
     <div class="cta-row" style="margin-top:1.5rem">
-      <a class="btn btn--ghost" href={repo}>Source on GitHub</a>
-      <a class="btn btn--ghost" href={`${repo}/tree/main/docs`}>Architecture docs</a>
+      <a class="btn btn--ghost" href={repo} target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+      <a class="btn btn--ghost" href={`${repo}/tree/main/docs`} target="_blank" rel="noopener noreferrer">Architecture docs</a>
     </div>
   </Section>
 
-  <!-- (3) JD-to-evidence mapping -->
+  <!-- (3) Inside the platform — author-supplied screenshots (local assets only) -->
+  <Section id="inside" eyebrow="Inside the platform" title="What it looks like running" class="section--warm">
+    <p class="lead" style="margin-bottom:1.5rem">
+      The cluster's own Grafana and the Azure resources behind it. Screenshots
+      are local assets — no remote images, so the page still makes zero external
+      requests.
+    </p>
+    <div class="grid">
+      <figure class="shot" style="margin:0">
+        <figcaption>
+          Azure portal — rg-newcode-cv
+          <span class="todo">{'{{TODO: drop app/public/shots/azure-rg.png}}'}</span>
+        </figcaption>
+      </figure>
+      <figure class="shot" style="margin:0">
+        <figcaption>
+          In-cluster Grafana — RED dashboard
+          <span class="todo">{'{{TODO: drop app/public/shots/grafana-red.png}}'}</span>
+        </figcaption>
+      </figure>
+    </div>
+  </Section>
+
+  <!-- (4) JD-to-evidence mapping -->
   <Section
     id="evidence"
-    eyebrow="Newcode.ai job requirements"
-    title="Every requirement, mapped to working code"
+    eyebrow="Newcode.ai role"
+    title="The job requirements, and where each one lives"
   >
     <p class="lead" style="margin-bottom:1.5rem">
-      No claims without a file. Each line below links to the exact artifact in
-      this repo that backs it.
+      Each row links to the file in this repo that backs it.
     </p>
     <EvidenceTable />
   </Section>
 
-  <!-- (3b) Track record -->
+  <!-- (5) Track record -->
   <Section
     id="background"
     eyebrow="15+ years in production infrastructure"
     title="Track record"
+    class="section--warm"
   >
     <ul class="notes">
       <li>
-        <strong>AI Delivery Lead, Sky.</strong> Led delivery of a governed, multi-tenant agentic-AI
-        platform — security gateway, sandboxed agent runtime, approval-aware tool registry and RAG —
-        across Azure, AWS and GCP, and industrialised AI across the software-delivery lifecycle.
-        <span class="plain">A company can put AI agents to real work safely — with approvals, an audit trail and cost control built in, not bolted on later.</span>
+        <strong>AI Delivery Lead, Sky.</strong> Led delivery of a governed,
+        multi-tenant agentic-AI platform — security gateway, sandboxed agent
+        runtime, approval-aware tool registry and RAG — across Azure, AWS and
+        GCP, and industrialised AI across the software-delivery lifecycle.
       </li>
       <li>
-        <strong>Senior Azure Architect &amp; DevOps, PwC.</strong> Built and optimised Azure DevOps
-        CI/CD with FinOps and on-demand AKS, pipeline templates and automated secret rotation; audited
-        an enterprise platform on AKS / Terraform / GitOps; led Microsoft-stack upskilling for a large
+        <strong>Senior Azure Architect &amp; DevOps, PwC.</strong> Built Azure
+        DevOps CI/CD with FinOps and on-demand AKS, pipeline templates and
+        automated secret rotation; audited an enterprise platform on AKS /
+        Terraform / GitOps; led Microsoft-stack upskilling for a large
         engineering group.
-        <span class="plain">Software ships faster and cheaper, breaks less often, and the team can keep it that way.</span>
       </li>
       <li>
-        <strong>Lead Azure Architect &amp; DevOps, Lingaro.</strong> Azure DevOps + Terraform CI/CD,
-        AKS and Ansible at scale — high-availability clusters and fast, repeatable deployments.
-        <span class="plain">Systems that stay online and roll out updates in minutes instead of days.</span>
+        <strong>Lead Azure Architect &amp; DevOps, Lingaro.</strong> Azure
+        DevOps + Terraform CI/CD, AKS and Ansible at scale — high-availability
+        clusters and repeatable deployments.
       </li>
       <li>
-        Earlier: infrastructure architecture and systems administration across many SMEs
-        (Linux/Windows, virtualization, DR). MSc Robotics.
+        Earlier: infrastructure architecture and systems administration across
+        many SMEs (Linux/Windows, virtualization, DR). MSc Robotics.
         <strong>Microsoft Certified: Azure Solutions Architect Expert.</strong>
-        <span class="plain">Years of keeping real business systems running, fast and recoverable.</span>
       </li>
     </ul>
   </Section>
 
-  <!-- (3c) Independent delivery -->
+  <!-- (6) Independent delivery -->
   <Section
     id="independent"
     eyebrow="A dozen-plus smaller companies"
     title="Independent delivery"
   >
     <p class="lead" style="margin-bottom:1.25rem">
-      Alongside contracting, I've delivered automation and platform work for a dozen-plus smaller
-      companies — software houses, businesses automating their operations, IT product teams, and my
-      own back office. A few representative builds:
+      Alongside contracting, I've delivered automation and platform work for a
+      dozen-plus smaller companies — software houses, businesses automating their
+      operations, IT product teams, and my own back office. A few of them:
     </p>
     <ul class="notes">
       <li>
-        <strong>Multi-agent AI delivery platform</strong> — an orchestrator spawning ephemeral agent
-        containers, with all side-effects routed through an authenticated, audited gateway (per-caller
-        allow-lists, network-isolated egress); plus a GitHub-driven agent crew (Planner / Developer /
-        Reviewer) that runs Issue → PR → merge.
-        <span class="plain">Routine coding and ops get done by AI on their own — with a human signing off the important moves.</span>
+        <strong>Multi-agent AI delivery platform</strong> — an orchestrator
+        spawning ephemeral agent containers, with all side-effects routed through
+        an authenticated, audited gateway (per-caller allow-lists,
+        network-isolated egress); plus a GitHub-driven agent crew (Planner /
+        Developer / Reviewer) that runs Issue → PR → merge.
       </li>
       <li>
-        <strong>AI product stack</strong> — chatbot, RAG connectors, MCP integrations and a Teams-RAG
-        assistant, packaged for repeatable deployment.
-        <span class="plain">A company can ask its own documents and data questions and get straight answers, instead of digging by hand.</span>
+        <strong>AI product stack</strong> — chatbot, RAG connectors, MCP
+        integrations and a Teams-RAG assistant, packaged for repeatable
+        deployment.
       </li>
       <li>
-        <strong>GPU inference service</strong> — audio/video transcription with speaker diarization
-        (Whisper / NeMo), GPU images built and shipped through GitHub Actions.
-        <span class="plain">Hours of audio and video turn into accurate, speaker-labelled text automatically.</span>
+        <strong>GPU inference service</strong> — audio/video transcription with
+        speaker diarization (Whisper / NeMo), GPU images built and shipped
+        through GitHub Actions.
       </li>
       <li>
-        <strong>Bare-metal GPU server, deployed and AI-operated end to end</strong> — a dual-Blackwell
-        box (2× RTX 6000 Pro / 192 GB VRAM, 64-core Threadripper, ECC RAM, ZFS NVMe) on Proxmox with
-        VFIO GPU passthrough, NVIDIA / CUDA and a container GPU runtime, Tailscale-only access and
-        Cloudflare-Tunnel ingress — provisioned by Ansible + GitHub Actions and managed through an AI
-        ops workflow.
-        <span class="plain">A company's own private AI supercomputer — powerful, fully under its control, and kept running for it.</span>
+        <strong>Bare-metal GPU server, deployed and AI-operated end to end</strong>
+        — a dual-Blackwell box (2× RTX 6000 Pro / 192 GB VRAM, 64-core
+        Threadripper, ECC RAM, ZFS NVMe) on Proxmox with VFIO GPU passthrough,
+        NVIDIA / CUDA and a container GPU runtime, Tailscale-only access and
+        Cloudflare-Tunnel ingress — provisioned by Ansible + GitHub Actions and
+        managed through an AI ops workflow.
       </li>
       <li>
-        <strong>Product apps with full CI/CD</strong> — e.g. an OCR-based invoicing/accounting app
-        (Next.js, PostgreSQL, object storage, job queue) on a containerized deploy pipeline.
-        <span class="plain">Boring paperwork — like reading and filing invoices — handled automatically.</span>
+        <strong>Product apps with full CI/CD</strong> — e.g. an OCR-based
+        invoicing/accounting app (Next.js, PostgreSQL, object storage, job queue)
+        on a containerized deploy pipeline.
       </li>
       <li>
-        <strong>Infrastructure tooling</strong> — GitOps VM-fleet automation (Ansible + GitHub Actions
-        over Tailscale) and a Terraform-managed edge (Cloudflare DNS / WAF / origin certs / Zero-Trust
-        tunnels in front of an NGINX reverse proxy).
-        <span class="plain">New servers and websites go live safely in minutes, with nothing done by hand.</span>
+        <strong>Infrastructure tooling</strong> — GitOps VM-fleet automation
+        (Ansible + GitHub Actions over Tailscale) and a Terraform-managed edge
+        (Cloudflare DNS / WAF / origin certs / Zero-Trust tunnels in front of an
+        NGINX reverse proxy).
       </li>
     </ul>
   </Section>
 
-  <!-- (4) Security posture -->
+  <!-- (7) Security posture -->
   <Section
     id="security"
-    eyebrow="Built for confidential client data"
-    title="Zero secrets in a public repo"
+    eyebrow="OIDC · Key Vault · cosign"
+    title="No secrets in a public repo"
+    class="section--warm"
   >
     <div class="grid">
       <div class="card">
-        <h3>OIDC, not stored keys</h3>
+        <h3>OIDC, not stored keys <span class="key">OIDC</span></h3>
         <p>
-          Azure auth uses GitHub workload-identity federation. No service-principal
-          secrets exist anywhere in the repo or CI.
+          Azure auth uses GitHub workload-identity federation. No
+          service-principal secrets exist in the repo or CI.
         </p>
       </div>
       <div class="card">
-        <h3>Key Vault + CSI</h3>
+        <h3>Key Vault + CSI <span class="key">KEYVAULT</span></h3>
         <p>
-          In-cluster secrets (e.g. the tunnel token) flow from Azure Key Vault via
-          the Secrets Store CSI Driver and Workload Identity — never committed.
+          In-cluster secrets (like the tunnel token) come from Azure Key Vault
+          through the Secrets Store CSI Driver and Workload Identity.
         </p>
       </div>
       <div class="card">
-        <h3>Secret scanning as a gate</h3>
+        <h3>Secret scanning <span class="key">GITLEAKS</span></h3>
         <p>
-          gitleaks runs pre-commit and in CI. A leaked value fails the build,
-          not production.
+          gitleaks runs pre-commit and in CI; a detectable secret fails the
+          build before it merges.
         </p>
       </div>
       <div class="card">
-        <h3>Signed, scanned images</h3>
+        <h3>Signed, scanned images <span class="key">COSIGN</span></h3>
         <p>
           Trivy blocks HIGH/CRITICAL CVEs; cosign keyless signs every image and
-          deploys verify the signature.
+          the deploy verifies that signature.
         </p>
       </div>
     </div>
     <div class="cta-row" style="margin-top:1.5rem">
-      <a class="btn btn--ghost" href={`${repo}/blob/main/SECURITY.md`}>Read SECURITY.md</a>
+      <a class="btn btn--ghost" href={`${repo}/blob/main/SECURITY.md`} target="_blank" rel="noopener noreferrer">Read SECURITY.md</a>
     </div>
   </Section>
 
-  <!-- (5) Contact / CTA -->
-  <Section id="contact" eyebrow="Engagement" title="Let's talk">
+  <!-- (8) Contact -->
+  <Section id="contact" eyebrow="Engagement" title="Get in touch">
     <p class="lead">
-      From an empty subscription to a signed, monitored, multi-tenant AKS
-      platform — built, deployed and observed by the pipelines in this repo. If
-      that's the kind of infrastructure you need, let's talk.
+      This whole platform — AKS, signing, monitoring, tenant isolation — is built
+      and run by the pipelines in this repo, starting from an empty Azure
+      subscription. If that's what you're hiring for, get in touch.
     </p>
     <ul class="notes" style="margin-bottom:1.5rem">
-      <li>LinkedIn: <a href="https://www.linkedin.com/in/michal-sulawiak">michal-sulawiak</a></li>
-      <li>Code: <a href={repo}>{repo.replace('https://', '')}</a></li>
+      <li>LinkedIn: <a href="https://www.linkedin.com/in/michal-sulawiak" target="_blank" rel="noopener noreferrer">michal-sulawiak</a></li>
+      <li>Code: <a href={repo} target="_blank" rel="noopener noreferrer">{repo.replace('https://', '')}</a></li>
     </ul>
     <div class="cta-row">
-      <a class="btn btn--primary" href={repo}>
-        Browse the full repo
-      </a>
+      <a class="btn btn--primary" href={repo} target="_blank" rel="noopener noreferrer">Browse the repo ↗</a>
     </div>
   </Section>
 
   <footer class="site">
     <div class="wrap">
-      <span>
-        Built and operated by Michał Sulawiak — the infrastructure
-        is the CV.
-      </span>
+      <span>Built and operated by Michał Sulawiak.</span>
       <span class="mono">newcode.msulawiak.pl</span>
     </div>
   </footer>

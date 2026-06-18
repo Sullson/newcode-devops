@@ -27,6 +27,11 @@ USER 101
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
+# Render /tmp/proof.json from the Downward API at container start. The official
+# nginx entrypoint runs everything in /docker-entrypoint.d/ before launching
+# nginx; this script writes only public pod/node/image facts (see the script).
+COPY --chmod=0755 docker-entrypoint.d/40-render-proof.sh /docker-entrypoint.d/40-render-proof.sh
+
 EXPOSE 8080
 # 9113 is the exporter sidecar's port (separate container); 8081 is loopback-only.
 

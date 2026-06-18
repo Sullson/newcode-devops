@@ -33,12 +33,38 @@ _Last updated: 2026-06-18._
 
 ## Not done yet ⏳
 - **Only the manual `action=up`/`down` path is proven; a scheduled (cron) run has not yet
-  been observed.** The crons (`0 8` up / `0 11` down, `* * 1-5`, CEST) are wired.
+  been observed.** The crons are now **four 45-minute windows** on weekdays (CEST): `up` at
+  `0 8,10,12,14`, `down` at `45 8,10,12,14` (10:00/12:00/14:00/16:00, torn down 45 min later).
+  Each `up` rebuilds the cluster from scratch (~15 min before it serves), so the live-serving
+  slice of each window is ~30 min.
 - **Quality follow-ups (not deployment blockers):** `helm lint` is not yet a CI gate; the
   chart deploys `:latest` rather than the immutable `:sha` (cosign also verifies `:latest`, a
   TOCTOU gap); `SLO.md` still describes the Managed-Grafana alerting as if always-on; most
   third-party Actions are `@tag`-pinned pending Renovate. (RUNBOOK §5 still shows the old
   single-tag Tailscale snippet — superseded by the mutual-ownership gotcha below.)
+
+## Pending this change set (implemented, NOT yet deployed)
+Built and verified locally (Astro build + `helm lint`/`template` green), awaiting push + CI:
+- **Site restyled to the newcode.ai design language** — light theme, self-hosted **DM Sans /
+  Source Serif 4 / Fragment Mono** woff2 under `app/public/fonts/` (zero external requests
+  preserved), blue accent + purple→magenta brand gradient. Copy rewritten to drop the AI-tells
+  (no "the infrastructure is the CV", no "Plain terms:" spans, no antithesis closers). Every
+  link is `target="_blank" rel="noopener noreferrer"`.
+- **Live "served from AKS" proof** (the live page now visibly differs from the static front):
+  - the in-cluster nginx serves **`/proof.json`** rendered at container start by
+    `app/docker-entrypoint.d/40-render-proof.sh` from the **Downward API** (pod, `aks-*-vmss`
+    node, namespace) + Helm-passed `image.digest` / `cluster.{name,region,apiDomain}`. Only
+    whitelisted public fields — never an `env` dump. SWA has no pod, so `/proof.json` 404s there.
+  - the page fetches `/proof.json` same-origin (→ "served from this AKS pod", green ribbon) or
+    the cluster's cross-origin (→ "the cluster is up"). The `*.azmk8s.io` API host + node name
+    are shown as the official AKS markers.
+  - `deploy-aks.yml` now captures the cosign-verified digest and `az aks show` `privateFqdn`/
+    region and passes them to Helm. **NB** these are visible only after a CI image rebuild + the
+    next `up` (the entrypoint is in the image). The build-time **`LatestRun.astro`** evidence
+    card ships immediately with the SWA front (parses newest `docs/evidence/aks-proof-*.md`).
+- **`{{TODO}}` screenshot slots** in the "Inside the platform" section await real local PNGs at
+  `app/public/shots/azure-rg.png` and `app/public/shots/grafana-red.png` (no remote images by rule).
+- Window-time copy in README + architecture.md updated to the four-window schedule.
 
 ## Gotchas / decisions for whoever resumes
 - **First `terraform apply` needs an RG import.** `scripts/bootstrap-backend.sh` creates

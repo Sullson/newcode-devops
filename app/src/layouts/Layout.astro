@@ -7,8 +7,8 @@ interface Props {
 }
 
 const {
-  title = 'Senior DevOps — production AI infrastructure',
-  description = 'Production-grade Azure/AKS platform engineering: Terraform, Helm, GitHub Actions, observability, multi-tenant isolation, zero inbound ports, zero secrets in a public repo.',
+  title = 'Michał Sulawiak — Senior DevOps for production AI infrastructure',
+  description = 'Senior Cloud Architect & DevOps/SRE. A production Azure/AKS platform — Terraform, Helm, GitHub Actions, OIDC, signed images, observability, zero inbound ports, no secrets in the repo. The site is deployed by the pipelines it documents.',
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, Astro.site);
@@ -23,17 +23,23 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#0b0e14" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
 
-    <!-- Open Graph: text-only, no remote image to keep zero external requests. -->
+    <!-- Self-hosted fonts (same families as newcode.ai). Preloaded so the first
+         paint uses them; crossorigin is required for font preloads even
+         same-origin. No request leaves this origin. -->
+    <link rel="preload" href="/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/source-serif-4-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+    <!-- Open Graph: text-only, no remote image, so the page stays at zero
+         external requests. -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
 
-    <!-- No analytics, no trackers, no third-party scripts: a privacy posture
-         that matches a legal/professional-services AI audience. -->
+    <!-- No analytics, no trackers, no third-party scripts. -->
   </head>
   <body>
     <slot />

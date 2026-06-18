@@ -68,20 +68,24 @@ const rows: Row[] = [
   <table class="evidence">
     <thead>
       <tr>
-        <th scope="col">JD requirement</th>
-        <th scope="col">Claim</th>
+        <th scope="col">#</th>
+        <th scope="col">Requirement</th>
+        <th scope="col">What's there</th>
         <th scope="col">Proof in this repo</th>
+        <th scope="col">✓</th>
       </tr>
     </thead>
     <tbody>
       {
-        rows.map((r) => (
+        rows.map((r, i) => (
           <tr>
+            <td class="num">{String(i + 1).padStart(2, '0')}</td>
             <td>{r.req}</td>
             <td>{r.claim}</td>
-            <td class="proof">
-              <a href={`${repo}/${r.path}`}>{r.path}</a>
+            <td class="proof-cell">
+              <a href={`${repo}/${r.path}`} target="_blank" rel="noopener noreferrer">{r.path}</a>
             </td>
+            <td class="tick" aria-label="backed by a committed file">✓</td>
           </tr>
         ))
       }

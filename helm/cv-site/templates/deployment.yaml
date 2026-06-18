@@ -61,6 +61,34 @@ spec:
         - name: cv-site
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Non-secret identity for the live /proof.json the entrypoint renders.
+          # Downward-API fields are injected by the kubelet (no API token needed,
+          # so this works under automountServiceAccountToken: false). The image
+          # ref/digest and cluster facts come from Helm at deploy time. The
+          # entrypoint writes ONLY these whitelisted fields — it never dumps env.
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: IMAGE_REF
+              value: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            - name: IMAGE_DIGEST
+              value: "{{ .Values.image.digest }}"
+            - name: CLUSTER_NAME
+              value: "{{ .Values.cluster.name }}"
+            - name: CLUSTER_REGION
+              value: "{{ .Values.cluster.region }}"
+            - name: CLUSTER_API_DOMAIN
+              value: "{{ .Values.cluster.apiDomain }}"
           ports:
             - name: http
               containerPort: {{ .Values.containerPorts.http }}

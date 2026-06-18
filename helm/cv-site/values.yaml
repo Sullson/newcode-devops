@@ -8,7 +8,23 @@ image:
   repository: acrnewcodecv.azurecr.io/cv-site
   # tag defaults to "latest"; CI overrides with the git short SHA on main.
   tag: "latest"
+  # Verified sha256 digest, set at deploy time from the cosign-verify output so
+  # the live /proof.json shows the exact signed artifact that is running. Empty
+  # in the repo by design — never hardcoded.
+  digest: ""
   pullPolicy: IfNotPresent
+
+# Non-secret cluster identity, surfaced live at /proof.json so the page can show
+# which AKS cluster and node are serving it during a window. Set at deploy time
+# by the workflow. Everything here is public — a node name, a region, the
+# *.azmk8s.io API host — and none of it grants access (the API server is private
+# and AAD-gated). The always-on SWA front has no pod, so /proof.json 404s there;
+# that asymmetry is what lets the page tell "served from AKS" from "served from
+# the static front".
+cluster:
+  name: ""
+  region: ""
+  apiDomain: ""
 
 # Workload Identity wires the in-cluster ServiceAccount to a user-assigned
 # managed identity in Azure (id-cv-app), letting pods read Key Vault with NO

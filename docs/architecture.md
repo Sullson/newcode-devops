@@ -13,8 +13,8 @@ the cluster definition is [`terraform/aks.tf`](../terraform/aks.tf).
 
 ### AKS — private cluster (`aks-newcode-cv`)
 A managed Kubernetes cluster with **no public API server endpoint**. The control plane is reachable only
-from inside the virtual network or over the tailnet (below). This is the deliberate, non-obvious choice:
-it removes the single most-scanned attack surface a cluster has. App workloads run in namespace `cv`;
+from inside the virtual network or over the tailnet (below). A private API server removes the
+most-scanned attack surface a cluster has. App workloads run in namespace `cv`;
 demo tenant namespaces `tenant-a` / `tenant-b` show isolation.
 
 ### Workload Identity (`id-cv-app`)
@@ -58,9 +58,9 @@ trimmed live dashboard ([`helm/cv-site/dashboards/cv-site-live.json`](../helm/cv
 — only the panels backed by real `stub_status` data, so a visitor never lands on an empty "No data" panel.
 
 ### Azure Static Web Apps (`swa-newcode-cv`)
-The always-on, free-tier front at `newcode.msulawiak.pl`. It serves the **same** Astro static output as
-the container image — the SWA is the durable, $0 surface so the CV is never down, while AKS is the
-on-demand proof surface.
+The always-on, free-tier front at `newcode.msulawiak.pl`. It serves the same Astro static output as the
+container image. SWA is the durable, $0 surface so the CV is never down; AKS is the on-demand proof
+surface.
 
 ### ACR (`acrnewcodecv`) + image
 `acrnewcodecv.azurecr.io/cv-site:<tag>` where `<tag>` is the git short SHA on `main`; the `main` build
@@ -95,9 +95,10 @@ A private AKS cluster with node pools running 24/7 to serve a static CV would co
 benefit — the CV is static HTML. So:
 
 - **Always-on** is Azure **Static Web Apps free tier**: $0, globally cached, never 404s.
-- **On-demand** is the full AKS platform, run as a **daily live window** (10:00–13:00 Europe/Warsaw) by
-  the `deploy-aks` workflow: an `up` run (cron + manual) stands the cluster up and leaves it running so it
-  is browsable; a `down` run (cron + manual) tears it back down. Each `up` records timestamped evidence in
+- **On-demand** is the full AKS platform, run as recurring live windows — four 45-minute windows on
+  weekdays (10:00, 12:00, 14:00, 16:00 Europe/Warsaw) — by the `deploy-aks` workflow: an `up` run (cron +
+  manual) stands the cluster up and leaves it running so it is browsable; a `down` run (cron + manual)
+  tears it back down 45 minutes later. Each `up` records timestamped evidence in
   [`docs/evidence/`](evidence/), so the durable artifact is the proof, not a running cluster.
 
 This mirrors a real early-stage tradeoff: pay for the proof, not for idle capacity. It also demonstrates
@@ -105,13 +106,13 @@ clean teardown / reproducible-from-zero infrastructure, which matters more than 
 
 ---
 
-## Model-serving extension (credible, not benchmarked)
+## Model-serving extension (design sketch, not benchmarked)
 
 For an agentic-AI product, model-inference workloads would slot into the same chassis: a GPU node pool
 (e.g. an NVIDIA-backed AKS node pool with the device plugin) scheduled via taints/tolerations and
 `nodeSelector`, serving models behind the same private-API + Cloudflare-Tunnel posture so inference
-endpoints carry **no public ingress**. Model weights and provider API keys would flow through the **same**
-Key Vault + CSI + workload-identity path used here — no secrets in the repo. Autoscaling would extend
+endpoints carry no public ingress. Model weights and provider API keys would flow through the same
+Key Vault + CSI + workload-identity path used here, with no secrets in the repo. Autoscaling would extend
 from the current HPA to KEDA (queue/GPU-utilization triggers) and Cluster Autoscaler on the GPU pool so
 expensive nodes scale to zero when idle. The observability path (ServiceMonitor → Managed Prometheus →
 Grafana) extends to inference RED metrics + token/latency gauges. No invented numbers here — the point is
