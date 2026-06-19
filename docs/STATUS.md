@@ -98,6 +98,17 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
   and network reachability `tag:ci → tag:k8s-operator:443`. Symptom when wrong:
   `400 "requested tags [...] are invalid or not permitted"`. NB `tailscale/github-action`
   marks its step **success** even when `tailscale up` fails every retry - read the step log.
+- **Stale operator node = kubectl `i/o timeout` (NOT an ACL problem).** The in-process
+  API-server proxy is the operator pod's own tailnet node, named by `operatorConfig.hostname`.
+  Tailscale keeps an offline node's *bare* name pinned to it, so reusing a fixed hostname made
+  CI's `kubectl` resolve a dead node from a past run (`dial tcp <100.x>:443: i/o timeout`, two
+  runs in a row, 2026-06-19). The ACL was fine (`tag:ci → *:*` + the kubernetes grant). Fixes
+  applied: (1) `up` now uses a **unique per-run hostname** `…-operator-${GITHUB_RUN_ID}`, so CI
+  always targets this run's live node; (2) `down` **deletes all `tag:k8s-operator` devices** via
+  the Tailscale API (the chart has no `ephemeral` toggle for this node); (3) the kubeconfig step
+  uses `kubectl --request-timeout=15s` + a hard fail after retries, so a bad node fails in ~5 min
+  instead of hanging ~20. Manual recovery: delete the offline `aks-newcode-cv-operator*` node in
+  the Tailscale admin console, then re-run `up`.
 - **The operator is bootstrapped via the runCommand ARM REST API, not `az aks command
   invoke`.** The CLI wrapper's long-running-operation poller is broken across az versions
   ("Operation returned an invalid status 'OK'/'Not Found'") and swallows the result; the REST
