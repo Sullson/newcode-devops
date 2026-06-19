@@ -67,8 +67,11 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
     region and passes them to Helm. **NB** these are visible only after a CI image rebuild + the
     next `up` (the entrypoint is in the image). The build-time **`LatestRun.astro`** evidence
     card ships immediately with the SWA front (parses newest `docs/evidence/aks-proof-*.md`).
-- **`{{TODO}}` screenshot slots** in the "Inside the platform" section await real local PNGs at
-  `app/public/shots/azure-rg.png` and `app/public/shots/grafana-red.png` (no remote images by rule).
+- **"Inside the platform" screenshots are in place**: real local PNGs at
+  `app/public/shots/azure-rg.png` (Azure portal - rg-newcode-cv) and
+  `app/public/shots/grafana-red.png` (in-cluster Grafana RED dashboard) now fill the former
+  `{{TODO}}` slots, served as local assets (no remote images by rule). `k8s_down.png` sits in
+  the same dir but is currently unreferenced.
 - Window-time copy in README + architecture.md updated to the four-window schedule.
 
 ## Gotchas / decisions for whoever resumes

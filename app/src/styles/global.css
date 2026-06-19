@@ -540,6 +540,34 @@ table.evidence td.tick {
 .shot .todo {
   margin-top: 0.5rem;
 }
+/* Filled variant: a real screenshot has been dropped in, so the frame wraps the
+   image (solid border, caption underneath) instead of the dashed empty slot. */
+.shot--img {
+  border-style: solid;
+  border-color: var(--border-cool);
+  aspect-ratio: auto;
+  display: block;
+  /* Each card sizes to its own image instead of being stretched to the
+     taller sibling by the grid (the two shots have different aspect ratios). */
+  align-self: start;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+}
+.shot--img img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.shot--img figcaption {
+  padding: 0.55rem 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+  background: var(--bg);
+  border-top: 1px solid var(--border-cool);
+}
 
 .todo {
   font-family: var(--font-mono);
