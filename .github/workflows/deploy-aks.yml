@@ -6,12 +6,14 @@ name: deploy-aks
 #            Grafana, verify the signed image, record evidence. Leaves it RUNNING.
 #   * down - tear the ephemeral cluster back down (cost control).
 #
-# Schedule: four 45-minute windows on weekdays - up at 10:00 / 12:00 / 14:00 /
-# 16:00, each torn down 45 min later. GitHub cron is UTC with no DST, so these
-# are pinned to CEST (summer, UTC+2); in winter (CET, UTC+1) the windows land an
-# hour earlier in local time - adjust the crons if that matters. Each `up` builds
-# the cluster from scratch (~15 min before it serves), so the live-serving slice
-# of each window is ~30 min.
+# Schedule: four 45-minute windows on weekdays - up at ~10:07 / 12:07 / 14:07 /
+# 16:07, each torn down 45 min later (~:52). The crons sit a few minutes off the
+# hour on purpose: GitHub delays, and sometimes drops, scheduled runs at the top
+# of the hour, so :07/:52 land far more reliably. GitHub cron is UTC with no DST,
+# so these are pinned to CEST (summer, UTC+2); in winter (CET, UTC+1) they land an
+# hour earlier in local time. Each `up` builds the cluster from scratch (~15 min
+# before it serves), so the live-serving slice of each window is ~30 min. Even so,
+# schedules are best-effort; trigger manually for a guaranteed window.
 #
 # During the window:
 #   * app      https://aks-newcode.msulawiak.pl
@@ -26,8 +28,8 @@ on:
         options: [up, down]
         default: up
   schedule:
-    - cron: "0 8,10,12,14 * * 1-5"  # up   - 10/12/14/16 CEST (weekdays)
-    - cron: "45 8,10,12,14 * * 1-5" # down - 45 min after each up
+    - cron: "7 8,10,12,14 * * 1-5"   # up   - ~10/12/14/16 CEST, off the hour
+    - cron: "52 8,10,12,14 * * 1-5"  # down - 45 min after each up
 
 permissions:
   contents: read
@@ -61,7 +63,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "action=${{ inputs.action }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "45 8,10,12,14 * * 1-5" ]; then
+          elif [ "${{ github.event.schedule }}" = "52 8,10,12,14 * * 1-5" ]; then
             echo "action=down" >> "$GITHUB_OUTPUT"
           else
             echo "action=up" >> "$GITHUB_OUTPUT"
