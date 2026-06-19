@@ -33,8 +33,11 @@ _Last updated: 2026-06-18._
 
 ## Not done yet ⏳
 - **Only the manual `action=up`/`down` path is proven; a scheduled (cron) run has not yet
-  been observed.** The crons are now **four 45-minute windows** on weekdays (CEST): `up` at
-  `0 8,10,12,14`, `down` at `45 8,10,12,14` (10:00/12:00/14:00/16:00, torn down 45 min later).
+  been observed.** The crons are **four 45-minute windows** on weekdays (CEST): `up` at
+  `7 8,10,12,14`, `down` at `52 8,10,12,14` (~10/12/14/16, torn down 45 min later). They sit
+  a few minutes off the hour on purpose: GitHub delays and sometimes drops scheduled runs at
+  the top of the hour (observed 2026-06-19: the `0 8` up didn't fire, and `security-nightly`'s
+  `0 2` ran 76 min late). Schedules are best-effort; trigger manually for a guaranteed window.
   Each `up` rebuilds the cluster from scratch (~15 min before it serves), so the live-serving
   slice of each window is ~30 min.
 - **Quality follow-ups (not deployment blockers):** `helm lint` is not yet a CI gate; the

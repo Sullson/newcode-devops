@@ -27,6 +27,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      # The issue upsert below labels findings `security`; create it if a fresh
+      # clone/fork doesn't have it yet (--force is create-or-update, exit 0).
+      - name: Ensure 'security' label exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh label create security --color 0E8A16 --description "Nightly security findings" --force
+
       # --- osv-scanner: dependency vulnerabilities -----------------------------
       - name: osv-scanner (deps)
         id: osv
