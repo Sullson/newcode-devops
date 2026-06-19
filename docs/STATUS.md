@@ -70,8 +70,10 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
 - **"Inside the platform" screenshots are in place**: real local PNGs at
   `app/public/shots/azure-rg.png` (Azure portal - rg-newcode-cv) and
   `app/public/shots/grafana-red.png` (in-cluster Grafana RED dashboard) now fill the former
-  `{{TODO}}` slots, served as local assets (no remote images by rule). `k8s_down.png` sits in
-  the same dir but is currently unreferenced.
+  `{{TODO}}` slots, served as local assets (no remote images by rule). Each thumbnail is
+  click-to-enlarge via a **pure-CSS `:target` lightbox** (no JS - the full-res PNG is already
+  the thumbnail's src, so enlarging reuses the cached image and the page keeps shipping zero
+  client JS / zero external requests). `k8s_down.png` sits in the same dir but is unreferenced.
 - Window-time copy in README + architecture.md updated to the four-window schedule.
 
 ## Gotchas / decisions for whoever resumes

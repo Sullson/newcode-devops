@@ -568,6 +568,62 @@ table.evidence td.tick {
   background: var(--bg);
   border-top: 1px solid var(--border-cool);
 }
+.shot__hint {
+  opacity: 0.7;
+}
+
+/* Click-to-enlarge, no JS: the thumbnail is the zoom trigger, the overlay below
+   is revealed via :target. The full-res PNG is already the thumbnail's src, so the
+   enlarged view reuses the cached image - no extra request, no client JS. */
+.shot__zoom {
+  display: block;
+  cursor: zoom-in;
+}
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  place-items: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: rgba(15, 12, 20, 0.85);
+  cursor: zoom-out;
+}
+.lightbox:target {
+  display: grid;
+}
+.lightbox img {
+  max-width: min(1600px, 96vw);
+  max-height: 92vh;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+.lightbox__close {
+  position: absolute;
+  top: clamp(0.5rem, 2vw, 1.25rem);
+  right: clamp(0.75rem, 2.5vw, 1.75rem);
+  font-size: 2.5rem;
+  line-height: 1;
+  color: #fff;
+  opacity: 0.85;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lightbox:target img {
+    animation: lightbox-in 0.15s ease-out;
+  }
+  @keyframes lightbox-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
 
 .todo {
   font-family: var(--font-mono);

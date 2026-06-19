@@ -182,28 +182,44 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
     </p>
     <div class="grid">
       <figure class="shot shot--img" style="margin:0">
-        <img
-          src="/shots/azure-rg.png"
-          width="1421"
-          height="705"
-          loading="lazy"
-          decoding="async"
-          alt="Azure portal Resources blade for the rg-newcode-cv resource group: container registry, AKS cluster, Azure Managed Grafana, Azure Monitor workspace, Key Vault, Log Analytics workspace, Static Web App and managed identities, all in Sweden Central."
-        />
-        <figcaption>Azure portal - rg-newcode-cv</figcaption>
+        <a class="shot__zoom" href="#lb-azure" aria-label="Enlarge the Azure portal screenshot">
+          <img
+            src="/shots/azure-rg.png"
+            width="1421"
+            height="705"
+            loading="lazy"
+            decoding="async"
+            alt="Azure portal Resources blade for the rg-newcode-cv resource group: container registry, AKS cluster, Azure Managed Grafana, Azure Monitor workspace, Key Vault, Log Analytics workspace, Static Web App and managed identities, all in Sweden Central."
+          />
+        </a>
+        <figcaption>Azure portal - rg-newcode-cv <span class="shot__hint">(click to enlarge)</span></figcaption>
       </figure>
       <figure class="shot shot--img" style="margin:0">
-        <img
-          src="/shots/grafana-red.png"
-          width="1615"
-          height="831"
-          loading="lazy"
-          decoding="async"
-          alt="In-cluster Grafana RED dashboard: requests per second, connections handled versus accepted, active connections, a 0% dropped-connection ratio and total requests handled."
-        />
-        <figcaption>In-cluster Grafana - RED dashboard</figcaption>
+        <a class="shot__zoom" href="#lb-grafana" aria-label="Enlarge the Grafana RED dashboard screenshot">
+          <img
+            src="/shots/grafana-red.png"
+            width="1615"
+            height="831"
+            loading="lazy"
+            decoding="async"
+            alt="In-cluster Grafana RED dashboard: requests per second, connections handled versus accepted, active connections, a 0% dropped-connection ratio and total requests handled."
+          />
+        </a>
+        <figcaption>In-cluster Grafana - RED dashboard <span class="shot__hint">(click to enlarge)</span></figcaption>
       </figure>
     </div>
+
+    <!-- Pure-CSS lightboxes (no JS): each thumbnail links to its overlay via :target.
+         The full-res PNG is already the thumbnail's src, so enlarging it costs no extra
+         request and the page keeps shipping zero client JS / zero external requests. -->
+    <a class="lightbox" id="lb-azure" href="#inside" aria-label="Close the enlarged screenshot">
+      <span class="lightbox__close" aria-hidden="true">&times;</span>
+      <img src="/shots/azure-rg.png" alt="Enlarged: Azure portal Resources blade for rg-newcode-cv." />
+    </a>
+    <a class="lightbox" id="lb-grafana" href="#inside" aria-label="Close the enlarged screenshot">
+      <span class="lightbox__close" aria-hidden="true">&times;</span>
+      <img src="/shots/grafana-red.png" alt="Enlarged: in-cluster Grafana RED dashboard." />
+    </a>
   </Section>
 
   <!-- (4) JD-to-evidence mapping -->
