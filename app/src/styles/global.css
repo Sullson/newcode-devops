@@ -185,6 +185,13 @@ code {
     radial-gradient(70% 50% at 15% -10%, rgba(0, 106, 255, 0.06), transparent 60%),
     radial-gradient(60% 50% at 100% 0%, rgba(200, 26, 129, 0.05), transparent 55%);
 }
+.hero__name {
+  font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+  margin: 0 0 0.85rem;
+}
 .hero h1 {
   font-size: clamp(2.3rem, 6vw, 3.9rem);
   line-height: 1.04;
