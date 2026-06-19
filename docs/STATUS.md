@@ -33,8 +33,9 @@ _Last updated: 2026-06-18._
 
 ## Not done yet ⏳
 - **Triggering model (changed 2026-06-19): `up` is MANUAL only; `down` keeps a cron backstop.**
-  The `up` cron was removed - the owner brings up a live window on demand (manual
-  `workflow_dispatch`, or an external trigger). `down` keeps a weekday cron BACKSTOP at
+  The `up` cron was removed - up now runs on **Michał's external scheduler** firing
+  `workflow_dispatch` on weekdays at 10/12/14/16 Europe/Warsaw (~45-min windows), plus manual.
+  `down` keeps a weekday cron BACKSTOP at
   `45 8,10,12,14` (:45 past 10/12/14/16 CEST) plus manual, so a forgotten teardown can't leave a
   window billing. The `decide` job no longer matches a literal cron string: any `schedule` event
   is now a teardown. GitHub cron stays best-effort (delays/drops, worst at the top of the hour;

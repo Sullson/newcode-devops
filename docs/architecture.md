@@ -96,9 +96,10 @@ benefit - the CV is static HTML. So:
 
 - **Always-on** is Azure **Static Web Apps free tier**: $0, globally cached, never 404s.
 - **On-demand** is the full AKS platform, brought up as a live window by the `deploy-aks` workflow: an
-  `up` run (manual `workflow_dispatch`) stands the cluster up and leaves it running so it is browsable;
-  a `down` run (manual, plus a weekday cron backstop at :45 past 10/12/14/16 CEST) tears it back down.
-  Each `up` records timestamped evidence in
+  `up` run (`workflow_dispatch`, fired on weekdays at 10/12/14/16 Europe/Warsaw by an external scheduler,
+  or manually) stands the cluster up and leaves it running so it is browsable; a `down` run (manual, plus
+  a weekday GitHub cron backstop at :45 past those hours) tears it back down ~45 min later. Each `up`
+  records timestamped evidence in
   [`docs/evidence/`](evidence/), so the durable artifact is the proof, not a running cluster.
 
 This mirrors a real early-stage tradeoff: pay for the proof, not for idle capacity. It also demonstrates

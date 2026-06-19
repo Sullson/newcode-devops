@@ -10,8 +10,8 @@ and it's deployed by the pipelines in this repo.
 
 ## ▶ See it running
 
-The full private-AKS platform is brought up **on demand** and torn down automatically, so it costs
-nothing when idle. During a live window, from any browser, no login:
+The full private-AKS platform comes up on weekdays at **10:00, 12:00, 14:00 and 16:00 (Europe/Warsaw)**
+for ~45 minutes, then tears down, so it costs nothing when idle. During a window, from any browser, no login:
 
 | | |
 |---|---|
