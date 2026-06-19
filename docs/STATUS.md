@@ -112,6 +112,16 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
   uses `kubectl --request-timeout=15s` + a hard fail after retries, so a bad node fails in ~5 min
   instead of hanging ~20. Manual recovery: delete the offline `aks-newcode-cv-operator*` node in
   the Tailscale admin console, then re-run `up`.
+- **`up` cold-start hit `AADSTS700024` on the first post-apply `az` data-plane call.**
+  `azure/login`'s GitHub OIDC client assertion is valid only ~5 min, but a cold-start
+  `terraform apply` (fresh AKS) runs ~10 min, so by the time `az keyvault secret set` needs a
+  token for a **new audience** (`vault.azure.net`) the assertion has expired ("client assertion
+  is not within its valid time range"; observed run 27828356597, 2026-06-19). Warm re-ups (fast
+  apply) stayed inside the window and passed, which is why it looked intermittent. Fix: a second
+  `azure/login` right after `terraform apply`, before the Key Vault sync + operator bootstrap
+  (the two new-audience exchanges); `management.azure.com` tokens are cached from login so later
+  `az acr login` / `az aks show` need no re-mint. A failed `up` leaves the just-applied cluster
+  RUNNING until the next `down` - reap it manually with `gh workflow run deploy-aks.yml -f action=down`.
 - **The operator is bootstrapped via the runCommand ARM REST API, not `az aks command
   invoke`.** The CLI wrapper's long-running-operation poller is broken across az versions
   ("Operation returned an invalid status 'OK'/'Not Found'") and swallows the result; the REST
