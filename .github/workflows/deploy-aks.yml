@@ -115,7 +115,11 @@ jobs:
         working-directory: terraform
         run: |
           echo "wi_client_id=$(terraform output -raw cv_app_client_id)" >> "$GITHUB_OUTPUT"
-          echo "operator_host=$(terraform output -raw tailscale_operator_hostname)" >> "$GITHUB_OUTPUT"
+          # Unique-per-run operator hostname. Tailscale keeps an offline node's
+          # bare name pinned to it, so reusing a fixed hostname makes CI's kubectl
+          # resolve a dead node from a past run (i/o timeout). A per-run suffix
+          # means CI always targets this run's live operator node.
+          echo "operator_host=$(terraform output -raw tailscale_operator_hostname)-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
 
       # Push the real Cloudflare tunnel token into Key Vault so the in-cluster
       # cloudflared (CSI + Workload Identity) can dial out. TF state -> Key Vault
@@ -194,12 +198,19 @@ jobs:
         env:
           OPERATOR_HOST: ${{ steps.tf.outputs.operator_host }}
         run: |
-          for i in $(seq 1 20); do
-            tailscale configure kubeconfig "$OPERATOR_HOST" && \
-              kubectl cluster-info && break
-            echo "operator not ready yet (attempt $i)"; sleep 15
+          # --request-timeout bounds each probe so a dead/unreachable operator
+          # node fails in ~15s instead of hanging kubectl. After the retries we
+          # exit non-zero (fail fast) rather than running a final blocking call.
+          ok=
+          for i in $(seq 1 12); do
+            if tailscale configure kubeconfig "$OPERATOR_HOST" && \
+               kubectl cluster-info --request-timeout=15s; then ok=1; break; fi
+            echo "operator API proxy not reachable yet (attempt $i)"; sleep 10
           done
-          kubectl cluster-info
+          if [ -z "$ok" ]; then
+            echo "operator API proxy unreachable after retries - failing fast (check the tailnet node for $OPERATOR_HOST)"
+            exit 1
+          fi
 
       # Pin the cosign binary via the installer action (Renovate-pinnable)
       # instead of curling a moving releases/latest URL into the verify gate.
@@ -352,3 +363,29 @@ jobs:
         run: |
           terraform init -backend-config="key=cv.tfstate" -input=false
           terraform apply -auto-approve -input=false -var deploy_aks=false
+
+      # The in-process API-server proxy runs as the operator pod's own tailnet
+      # node; the chart has no ephemeral toggle for it, so teardown leaves an
+      # offline node behind. Delete every tag:k8s-operator device via the
+      # Tailscale API so stale nodes don't accumulate (and don't shadow a future
+      # operator's hostname). Best-effort: never block teardown on cleanup.
+      - name: Remove operator nodes from the tailnet
+        if: always()
+        continue-on-error: true
+        env:
+          TS_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+        run: |
+          set -u
+          TOKEN=$(curl -s -d "client_id=$TS_ID" -d "client_secret=$TS_SECRET" \
+            https://api.tailscale.com/api/v2/oauth/token | jq -r '.access_token // empty')
+          if [ -z "$TOKEN" ]; then echo "no Tailscale token; skipping cleanup"; exit 0; fi
+          ids=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            https://api.tailscale.com/api/v2/tailnet/-/devices \
+            | jq -r '.devices[]? | select((.tags // []) | index("tag:k8s-operator")) | .id')
+          [ -n "$ids" ] || { echo "no tag:k8s-operator devices to remove"; exit 0; }
+          for id in $ids; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE \
+              -H "Authorization: Bearer $TOKEN" "https://api.tailscale.com/api/v2/device/$id")
+            echo "delete operator device $id -> HTTP $code"
+          done
