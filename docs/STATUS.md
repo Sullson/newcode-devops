@@ -32,14 +32,14 @@ _Last updated: 2026-06-18._
   grant - see gotcha below).
 
 ## Not done yet ⏳
-- **Only the manual `action=up`/`down` path is proven; a scheduled (cron) run has not yet
-  been observed.** The crons are **four 45-minute windows** on weekdays (CEST): `up` at
-  `7 8,10,12,14`, `down` at `52 8,10,12,14` (~10/12/14/16, torn down 45 min later). They sit
-  a few minutes off the hour on purpose: GitHub delays and sometimes drops scheduled runs at
-  the top of the hour (observed 2026-06-19: the `0 8` up didn't fire, and `security-nightly`'s
-  `0 2` ran 76 min late). Schedules are best-effort; trigger manually for a guaranteed window.
-  Each `up` rebuilds the cluster from scratch (~15 min before it serves), so the live-serving
-  slice of each window is ~30 min.
+- **Triggering model (changed 2026-06-19): `up` is MANUAL only; `down` keeps a cron backstop.**
+  The `up` cron was removed - the owner brings up a live window on demand (manual
+  `workflow_dispatch`, or an external trigger). `down` keeps a weekday cron BACKSTOP at
+  `45 8,10,12,14` (:45 past 10/12/14/16 CEST) plus manual, so a forgotten teardown can't leave a
+  window billing. The `decide` job no longer matches a literal cron string: any `schedule` event
+  is now a teardown. GitHub cron stays best-effort (delays/drops, worst at the top of the hour;
+  `security-nightly`'s `0 2` ran 76 min late) - fine for a teardown safety net. Each `up` rebuilds
+  the cluster from scratch (~15 min before it serves), so the live-serving slice is ~30 min.
 - **Quality follow-ups (not deployment blockers):** `helm lint` is not yet a CI gate; the
   chart deploys `:latest` rather than the immutable `:sha` (cosign also verifies `:latest`, a
   TOCTOU gap); `SLO.md` still describes the Managed-Grafana alerting as if always-on. (RUNBOOK
@@ -74,7 +74,8 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
   click-to-enlarge via a **pure-CSS `:target` lightbox** (no JS - the full-res PNG is already
   the thumbnail's src, so enlarging reuses the cached image and the page keeps shipping zero
   client JS / zero external requests). `k8s_down.png` sits in the same dir but is unreferenced.
-- Window-time copy in README + architecture.md updated to the four-window schedule.
+- Window/trigger copy in front (`index.astro`), README and architecture.md updated to on-demand
+  `up` + `down` cron backstop (no more fixed four-window schedule).
 
 ## Gotchas / decisions for whoever resumes
 - **`dependency-review` CI gate needs the repo's Dependency graph ON.** It failed on every PR

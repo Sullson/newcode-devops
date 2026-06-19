@@ -1,21 +1,23 @@
 name: deploy-aks
 
-# The on-demand AKS proof, run as recurring LIVE WINDOWS so anyone can open a
-# browser and see the whole platform working:
+# The on-demand AKS proof, run as LIVE WINDOWS so anyone can open a browser and
+# see the whole platform working:
 #   * up   - stand up the PRIVATE-API cluster, deploy cv-site + in-cluster
 #            Grafana, verify the signed image, record evidence. Leaves it RUNNING.
-#   * down - tear the ephemeral cluster back down (cost control).
+#            MANUAL ONLY (workflow_dispatch): the owner brings up a window when
+#            wanted, so there is deliberately no `up` cron.
+#   * down - tear the ephemeral cluster back down (cost control). Manual, plus a
+#            weekday cron BACKSTOP at :45 past 10/12/14/16 CEST so a forgotten
+#            manual teardown can never leave a window billing.
 #
-# Schedule: four 45-minute windows on weekdays - up at ~10:07 / 12:07 / 14:07 /
-# 16:07, each torn down 45 min later (~:52). The crons sit a few minutes off the
-# hour on purpose: GitHub delays, and sometimes drops, scheduled runs at the top
-# of the hour, so :07/:52 land far more reliably. GitHub cron is UTC with no DST,
-# so these are pinned to CEST (summer, UTC+2); in winter (CET, UTC+1) they land an
-# hour earlier in local time. Each `up` builds the cluster from scratch (~15 min
-# before it serves), so the live-serving slice of each window is ~30 min. Even so,
-# schedules are best-effort; trigger manually for a guaranteed window.
+# GitHub cron is UTC with no DST, so the down backstop is pinned to CEST (summer,
+# UTC+2); in winter (CET, UTC+1) it lands an hour earlier in local time. GitHub
+# also delays/drops scheduled runs (worst at the top of the hour) - acceptable for
+# a best-effort teardown safety net, the only thing left on cron here. Each `up`
+# builds the cluster from scratch (~15 min before it serves), so the live-serving
+# slice of a window is ~30 min.
 #
-# During the window:
+# During a window:
 #   * app      https://aks-newcode.msulawiak.pl
 #   * metrics  https://grafana-newcode.msulawiak.pl   (anonymous, no login)
 # Outside it, the always-on front https://newcode.msulawiak.pl stays up on SWA.
@@ -28,8 +30,9 @@ on:
         options: [up, down]
         default: up
   schedule:
-    - cron: "7 8,10,12,14 * * 1-5"   # up   - ~10/12/14/16 CEST, off the hour
-    - cron: "52 8,10,12,14 * * 1-5"  # down - 45 min after each up
+    # down BACKSTOP only - :45 past 10/12/14/16 CEST (08:45/10:45/12:45/14:45 UTC),
+    # weekdays. `up` is manual (workflow_dispatch) by design, so it has no cron.
+    - cron: "45 8,10,12,14 * * 1-5"
 
 permissions:
   contents: read
@@ -61,12 +64,12 @@ jobs:
     steps:
       - id: d
         run: |
+          # workflow_dispatch carries the chosen action; the only scheduled
+          # trigger left is the down backstop, so any schedule event is a teardown.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "action=${{ inputs.action }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "52 8,10,12,14 * * 1-5" ]; then
-            echo "action=down" >> "$GITHUB_OUTPUT"
           else
-            echo "action=up" >> "$GITHUB_OUTPUT"
+            echo "action=down" >> "$GITHUB_OUTPUT"
           fi
 
   up:

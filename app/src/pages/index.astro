@@ -40,10 +40,8 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
         </p>
         <p class="live__text" id="live-text">
           The full private-AKS platform - the app, the signed image, real
-          metrics - runs on weekdays in four 45-minute windows: 10:00, 12:00,
-          14:00 and 16:00 (Europe/Warsaw). Outside those it's torn down, so it
-          costs nothing when idle. Catch it in a window, or ask me and I'll bring
-          it up.
+          metrics - is brought up on demand, then torn down, so it costs nothing
+          when idle. Want to see it live? Ask me and I'll spin up a window.
         </p>
 
         <!-- Filled live from /proof.json (Downward API). Hidden until then. -->
@@ -142,8 +140,8 @@ const liveGrafana = 'https://grafana-newcode.msulawiak.pl';
   <Section id="served" eyebrow="Static Web Apps + AKS" title="How this page is served">
     <p class="lead">
       Right now you're on the always-on front, served by Azure Static Web Apps.
-      The same build runs on a private AKS cluster, deployed by Helm, during the
-      live windows above.
+      The same build runs on a private AKS cluster, deployed by Helm, during an
+      on-demand live window.
     </p>
     <ul class="notes">
       <li>

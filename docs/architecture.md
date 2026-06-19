@@ -95,10 +95,10 @@ A private AKS cluster with node pools running 24/7 to serve a static CV would co
 benefit - the CV is static HTML. So:
 
 - **Always-on** is Azure **Static Web Apps free tier**: $0, globally cached, never 404s.
-- **On-demand** is the full AKS platform, run as recurring live windows - four 45-minute windows on
-  weekdays (10:00, 12:00, 14:00, 16:00 Europe/Warsaw) - by the `deploy-aks` workflow: an `up` run (cron +
-  manual) stands the cluster up and leaves it running so it is browsable; a `down` run (cron + manual)
-  tears it back down 45 minutes later. Each `up` records timestamped evidence in
+- **On-demand** is the full AKS platform, brought up as a live window by the `deploy-aks` workflow: an
+  `up` run (manual `workflow_dispatch`) stands the cluster up and leaves it running so it is browsable;
+  a `down` run (manual, plus a weekday cron backstop at :45 past 10/12/14/16 CEST) tears it back down.
+  Each `up` records timestamped evidence in
   [`docs/evidence/`](evidence/), so the durable artifact is the proof, not a running cluster.
 
 This mirrors a real early-stage tradeoff: pay for the proof, not for idle capacity. It also demonstrates
