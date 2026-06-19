@@ -7,8 +7,9 @@
 //
 // Honest by construction: this is "a real signed deploy happened and was
 // recorded", NOT "we're on AKS this second" (that's the live /proof.json panel).
-// If the evidence can't be found/parsed (e.g. the in-image build has no docs/
-// context), it degrades to a {{TODO}}-style link rather than inventing values.
+// If the evidence can't be found/parsed (e.g. an in-image build with no docs/
+// context, or before any run has been recorded), it renders nothing - absence is
+// expected, not a defect, since runs are recorded after a deploy.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -119,18 +120,4 @@ const shortCommit = run?.commit ? run.commit.slice(0, 7) : null;
       </p>
     </div>
   </div>
-) : (
-  <div class="evidence-card">
-    <div class="evidence-card__body">
-      <p class="evidence-card__foot">
-        <span class="todo">{'{{TODO: evidence not found at build time}}'}</span> -{' '}
-        <a
-          href={`${REPO}/tree/main/docs/evidence`}
-          target="_blank"
-          rel="noopener noreferrer"
-          >browse the committed run evidence ↗</a
-        >.
-      </p>
-    </div>
-  </div>
-)}
+) : null}
