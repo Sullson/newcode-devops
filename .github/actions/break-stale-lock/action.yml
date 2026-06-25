@@ -1,0 +1,50 @@
+name: break-stale-lock
+description: >
+  Self-heal an orphaned Terraform state lock before init. The azurerm backend
+  holds an *infinite* blob lease while a run owns the state and releases it on
+  exit; if that release HTTP call is lost (a transient network reset, as on
+  2026-06-24) the lease stays held and every later run dies at "state blob is
+  already locked". Because the top-level `terraform-state` concurrency group
+  (cancel-in-progress: false) makes this run the SOLE state writer while this
+  step runs, a still-locked lease here can only be such an orphan - safe to
+  break. `terraform force-unlock` cannot recover it: the backend clears the
+  `terraformlockid` metadata BEFORE releasing the lease, so an interrupted
+  release leaves empty metadata with no lock id to target; breaking the lease
+  directly is the fix. Requires a prior `azure/login` (AAD data-plane auth).
+
+inputs:
+  storage-account:
+    description: Backend storage account holding the state blob.
+    required: false
+    default: stnewcodecvtf
+  container:
+    description: Backend container name.
+    required: false
+    default: tfstate
+  blob:
+    description: State blob name (the backend `key`).
+    required: false
+    default: cv.tfstate
+
+runs:
+  using: composite
+  steps:
+    - name: Break an orphaned state-blob lease
+      shell: bash
+      run: |
+        set -euo pipefail
+        status=$(az storage blob show \
+          --account-name "${{ inputs.storage-account }}" \
+          --container-name "${{ inputs.container }}" \
+          --name "${{ inputs.blob }}" \
+          --auth-mode login --query 'properties.lease.status' -o tsv)
+        if [ "$status" = "locked" ]; then
+          echo "::warning::${{ inputs.blob }} lease is locked but this run is the sole state writer (serialized by the terraform-state concurrency group) -> orphaned lock from a prior run whose lease-release was lost; breaking it."
+          az storage blob lease break \
+            --account-name "${{ inputs.storage-account }}" \
+            --container-name "${{ inputs.container }}" \
+            --blob-name "${{ inputs.blob }}" \
+            --auth-mode login
+        else
+          echo "${{ inputs.blob }} lease status: ${status:-none} - nothing to clear."
+        fi

@@ -100,6 +100,12 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # Clear an orphaned state lock left by a prior run whose lease-release was
+      # lost (see .github/actions/break-stale-lock). Safe here: the shared
+      # terraform-state concurrency group makes this run the sole state writer.
+      - name: Self-heal orphaned state lock
+        uses: ./.github/actions/break-stale-lock
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
 
@@ -370,6 +376,12 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Clear an orphaned state lock left by a prior run whose lease-release was
+      # lost (see .github/actions/break-stale-lock). Safe here: the shared
+      # terraform-state concurrency group makes this run the sole state writer.
+      - name: Self-heal orphaned state lock
+        uses: ./.github/actions/break-stale-lock
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2

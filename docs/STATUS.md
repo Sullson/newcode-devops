@@ -5,7 +5,7 @@ remains, and the non-obvious gotchas hit during bring-up. For a fresh agent or h
 picking this up. No secret values here (per the repo's zero-secrets rule); concrete
 identifiers come from `terraform output` / GitHub secrets.
 
-_Last updated: 2026-06-18._
+_Last updated: 2026-06-25._
 
 ## Live now ✅
 - **Persistent Azure infra is applied** (`deploy_aks=false`): RG, ACR, Key Vault, Log
@@ -95,6 +95,20 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
   (the state account is bootstrap-created outside Terraform and CI reads state over AAD, so
   the grant lives outside the Terraform run). The Key Vault tunnel-token secret is written by
   the `deploy-aks` workflow, not Terraform.
+- **Orphaned state-blob lease blocked every run for ~22h (2026-06-24).** A `down` run destroyed
+  the AKS stack fine, but its final lease-RELEASE HTTP call was lost (`HTTP response was nil;
+  connection may have been reset`), leaving `cv.tfstate` with an **infinite lease still held and
+  empty `terraformlockid` metadata**. Every later run then died in ~40s at "state blob is already
+  locked; blob metadata terraformlockid was empty" (10 runs - both windows and the cron backstop -
+  until a human broke the lease). `terraform force-unlock` can't recover this case: the backend
+  clears the metadata BEFORE releasing the lease, so an interrupted release leaves no lock id to
+  target. Manual recovery is to break the lease itself:
+  `az storage blob lease break --account-name stnewcodecvtf --container-name tfstate --blob-name cv.tfstate --auth-mode login`.
+  Now **self-healed**: `up` and `down` run the `break-stale-lock` composite action before
+  `terraform init` - it breaks a still-locked lease because the `terraform-state` concurrency group
+  guarantees the run is the sole state writer, so any held lease is an orphan. Detect via the blob
+  **lease** (`properties.lease.status`), NOT the `terraformlockid` metadata, which the incident
+  showed can be empty while the lease is stuck.
 - **Tailscale: the shared OAuth client needs *mutual tag ownership*.** One OAuth client
   (scopes `devices:core` + `auth_keys`) mints both the CI node (`tag:ci`) and the operator
   (`tag:k8s-operator`). An OAuth client may apply tag X only if one of *its own* tags is in
