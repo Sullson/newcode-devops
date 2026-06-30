@@ -113,6 +113,34 @@ jobs:
         working-directory: terraform
         run: terraform init -backend-config="key=cv.tfstate"
 
+      # Self-heal AKS state drift before apply. If a prior `up` died mid-create -
+      # typically azure/login's ~5-min OIDC assertion expiring during the ~15-min
+      # AKS CreateOrUpdate, before Terraform wrote state - Azure keeps the
+      # half-built cluster but state has no record of it. Every later apply then
+      # plans a fresh create and Azure rejects it ("a resource with the ID
+      # .../managedClusters/aks-newcode-cv already exists - needs to be imported
+      # into the State"), so EVERY `up` fails until the drift is reconciled by
+      # hand, while the orphan keeps billing (`down` can't see it - it's not in
+      # state). Importing the orphan lets the apply below RECONCILE the existing
+      # cluster instead of re-creating it. No-op when there is no drift (cluster
+      # absent -> clean create ahead; or already tracked in state). Safe: the
+      # terraform-state concurrency group makes this run the sole state writer, so
+      # a cluster in Azure but not in state can only be such an orphan.
+      - name: Self-heal AKS state drift (import orphaned cluster)
+        working-directory: terraform
+        run: |
+          set -euo pipefail
+          addr='azurerm_kubernetes_cluster.aks[0]'
+          if terraform state list | grep -qxF "$addr"; then
+            echo "$AKS already tracked in state - no drift."
+          elif ! az aks show -g "$RG" -n "$AKS" -o none 2>/dev/null; then
+            echo "$AKS absent from Azure - nothing to import (clean create ahead)."
+          else
+            id=$(az aks show -g "$RG" -n "$AKS" --query id -o tsv)
+            echo "::warning::$AKS exists in Azure but not in Terraform state -> orphan from a prior interrupted apply; importing so the apply below reconciles it instead of re-creating."
+            terraform import -input=false -var deploy_aks=true "$addr" "$id"
+          fi
+
       # Stand up the EPHEMERAL AKS stack (deploy_aks=true) on top of the always-on
       # persistent infra (ACR, Key Vault, SWA, identities, Cloudflare tunnel/DNS).
       - name: terraform apply (deploy_aks=true)

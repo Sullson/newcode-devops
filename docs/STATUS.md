@@ -5,7 +5,7 @@ remains, and the non-obvious gotchas hit during bring-up. For a fresh agent or h
 picking this up. No secret values here (per the repo's zero-secrets rule); concrete
 identifiers come from `terraform output` / GitHub secrets.
 
-_Last updated: 2026-06-25._
+_Last updated: 2026-06-30._
 
 ## Live now ✅
 - **Persistent Azure infra is applied** (`deploy_aks=false`): RG, ACR, Key Vault, Log
@@ -109,6 +109,22 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
   guarantees the run is the sole state writer, so any held lease is an orphan. Detect via the blob
   **lease** (`properties.lease.status`), NOT the `terraformlockid` metadata, which the incident
   showed can be empty while the lease is stuck.
+- **Orphaned AKS cluster (state DRIFT, not a lock) blocked every `up` (2026-06-29 →).** A
+  cold-start `up` (run 28376666350) began creating `aks-newcode-cv`, then died mid-`CreateOrUpdate`
+  when the GitHub OIDC assertion expired (`githubAssertion: cannot request token ... giving up after
+  5 attempts`). Azure kept the half-built cluster but Terraform never wrote it to state. From then
+  on every apply planned a fresh create and Azure rejected it (`a resource with the ID
+  .../managedClusters/aks-newcode-cv already exists - needs to be imported into the State`), so
+  every `up` failed - while the orphan kept billing, invisible to `down` (which only destroys what
+  is in state). This is a different failure from the state-blob lease above (`break-stale-lock`
+  logged "nothing to clear" throughout - the lock was fine). Now **self-healed**: `up` runs a
+  "Self-heal AKS state drift" step after `terraform init` - if the cluster is in Azure but not in
+  `terraform state list`, it `terraform import`s it so the apply reconciles the existing cluster
+  instead of re-creating it (no-op when there is no drift). Safe for the same reason as the lock
+  heal: the `terraform-state` concurrency group makes the run the sole state writer, so a cluster
+  outside state is an orphan. Manual recovery if ever needed: `terraform import
+  'azurerm_kubernetes_cluster.aks[0]' <cluster-id>` then re-run `up`, or `az aks delete -g
+  rg-newcode-cv -n aks-newcode-cv --yes` to drop a cluster too broken to reconcile.
 - **Tailscale: the shared OAuth client needs *mutual tag ownership*.** One OAuth client
   (scopes `devices:core` + `auth_keys`) mints both the CI node (`tag:ci`) and the operator
   (`tag:k8s-operator`). An OAuth client may apply tag X only if one of *its own* tags is in
