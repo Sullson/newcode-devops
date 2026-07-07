@@ -136,7 +136,10 @@ jobs:
           elif ! az aks show -g "$RG" -n "$AKS" -o none 2>/dev/null; then
             echo "$AKS absent from Azure - nothing to import (clean create ahead)."
           else
-            id=$(az aks show -g "$RG" -n "$AKS" --query id -o tsv)
+            # az CLI emits the ID with a lowercase `/resourcegroups/` segment, but the
+            # azurerm resource-ID parser is case-sensitive and requires `/resourceGroups/`,
+            # so terraform import fails to parse the raw ID. Normalize the casing first.
+            id=$(az aks show -g "$RG" -n "$AKS" --query id -o tsv | sed -E 's#/resourcegroups/#/resourceGroups/#i')
             echo "::warning::$AKS exists in Azure but not in Terraform state -> orphan from a prior interrupted apply; importing so the apply below reconciles it instead of re-creating."
             terraform import -input=false -var deploy_aks=true "$addr" "$id"
           fi
