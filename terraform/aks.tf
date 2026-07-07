@@ -22,6 +22,12 @@ resource "azurerm_kubernetes_cluster" "aks" {
     name       = "system"
     node_count = var.node_count
     vm_size    = var.vm_size
+
+    # Spread across all three availability zones so the VMSS allocator can place
+    # nodes wherever the region has capacity. A zone-less pool pins allocation to
+    # a single Azure-chosen placement, which repeatedly hit transient
+    # "Allocation failed" for this SKU in swedencentral.
+    zones = ["1", "2", "3"]
   }
 
   identity {

@@ -5,7 +5,7 @@ remains, and the non-obvious gotchas hit during bring-up. For a fresh agent or h
 picking this up. No secret values here (per the repo's zero-secrets rule); concrete
 identifiers come from `terraform output` / GitHub secrets.
 
-_Last updated: 2026-06-30._
+_Last updated: 2026-07-07._
 
 ## Live now ✅
 - **Persistent Azure infra is applied** (`deploy_aks=false`): RG, ACR, Key Vault, Log
@@ -79,6 +79,22 @@ Built and verified locally (Astro build + `helm lint`/`template` green), awaitin
   `up` + `down` cron backstop (no more fixed four-window schedule).
 
 ## Gotchas / decisions for whoever resumes
+- **AKS node pool: swedencentral capacity + quota gotcha (2026-07-07).** `up` failed in a loop
+  from two stacked causes: (1) Azure `Allocation failed ... VM Size` for the Intel
+  `Standard_D2s_v3` system VMSS - transient regional capacity, not quota - which left the cluster
+  `provisioningState=Failed` and OUT of Terraform state; (2) the #9 self-heal import fed the ID
+  with lowercase `/resourcegroups/` while the azurerm provider requires `/resourceGroups/`, so
+  `terraform import` aborted every run (fixed in #10). An orphaned Failed cluster is invisible to
+  `down` (`apply deploy_aks=false` sees `0 to destroy` - it is not in state) and keeps billing;
+  reap it directly with `az aks delete -g rg-newcode-cv -n aks-newcode-cv --yes` (takes the
+  `MC_...` node RG + VMSS with it). A quota probe (`az vm list-usage --location swedencentral`)
+  showed the B-series-v2 AND every v5/v6 D-family have **zero** vCPU quota in this subscription;
+  only the v3/v4 D-families have quota (regional cap 10 vCPU) - so `restrictions: []` in
+  `az vm list-skus` does NOT mean usable. The pool now uses `Standard_D2as_v4` (AMD DASv4, same
+  quota, a different physical capacity pool) with `zones = ["1","2","3"]` so the VMSS allocator
+  can place nodes wherever the region has capacity. Still transient by nature: if a clean `up`
+  ever re-hits allocation, the definitive check is a throwaway `az vm create --size <sku> --zone
+  <n>` probe before switching SKU again.
 - **`dependency-review` CI gate needs the repo's Dependency graph ON.** It failed on every PR
   ("Dependency review is not supported... enable Dependency graph") even though the repo is
   public - the dependency graph was off (SBOM 404, compare API 403). Fixed by enabling

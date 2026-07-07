@@ -62,9 +62,9 @@ variable "node_count" {
 }
 
 variable "vm_size" {
-  description = "VM SKU for the system node pool. D2s_v3 (2 vCPU / 8 GiB): the B-series-v2 family has zero vCPU quota in this subscription/region, while the D*sv3 family is available. node_count carries the sizing for the full proof stack."
+  description = "VM SKU for the system node pool. D2as_v4 (2 vCPU / 8 GiB, AMD): a swedencentral quota probe showed the B-series-v2 and every v5/v6 D-family have zero vCPU quota in this subscription; only the v3/v4 D-families have quota (regional cap 10 vCPU). Intel D2s_v3 repeatedly hit transient 'Allocation failed' on the VMSS, so the pool uses the DASv4 family (same quota, a different physical capacity pool) paired with zonal spread. node_count carries the sizing for the full proof stack."
   type        = string
-  default     = "Standard_D2s_v3"
+  default     = "Standard_D2as_v4"
 }
 
 variable "tags" {
