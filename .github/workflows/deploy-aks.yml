@@ -131,7 +131,18 @@ jobs:
         run: |
           set -euo pipefail
           addr='azurerm_kubernetes_cluster.aks[0]'
-          if terraform state list | grep -qxF "$addr"; then
+          # Capture the state list into a variable BEFORE grepping instead of
+          # piping terraform straight into `grep -q`. `grep -q` exits the moment it
+          # finds the first match and closes the pipe; the Node.js wrapper around
+          # terraform (hashicorp/setup-terraform) can then hit EPIPE and crash with
+          # an unhandled exception (non-zero exit) before it finishes writing. Under
+          # `pipefail` the whole `if` pipeline sees that non-zero and wrongly
+          # concludes the cluster is NOT tracked, driving a bogus import of an
+          # already-managed resource ("Resource already managed by Terraform") that
+          # fails the step and skips the real apply. Reading into a variable first
+          # lets terraform finish, and the here-string grep can close early harmlessly.
+          state_list=$(terraform state list)
+          if grep -qxF "$addr" <<<"$state_list"; then
             echo "$AKS already tracked in state - no drift."
           elif ! az aks show -g "$RG" -n "$AKS" -o none 2>/dev/null; then
             echo "$AKS absent from Azure - nothing to import (clean create ahead)."
