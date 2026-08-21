@@ -5,7 +5,7 @@ remains, and the non-obvious gotchas hit during bring-up. For a fresh agent or h
 picking this up. No secret values here (per the repo's zero-secrets rule); concrete
 identifiers come from `terraform output` / GitHub secrets.
 
-_Last updated: 2026-07-07._
+_Last updated: 2026-08-21._
 
 ## Live now ✅
 - **Persistent Azure infra is applied** (`deploy_aks=false`): RG, ACR, Key Vault, Log
@@ -32,15 +32,17 @@ _Last updated: 2026-07-07._
   grant - see gotcha below).
 
 ## Not done yet ⏳
-- **Triggering model (changed 2026-06-19): `up` is MANUAL only; `down` keeps a cron backstop.**
-  The `up` cron was removed - up now runs on **Michał's external scheduler** firing
-  `workflow_dispatch` on weekdays at 10/12/14/16 Europe/Warsaw (~45-min windows), plus manual.
-  `down` keeps a weekday cron BACKSTOP at
-  `45 8,10,12,14` (:45 past 10/12/14/16 CEST) plus manual, so a forgotten teardown can't leave a
-  window billing. The `decide` job no longer matches a literal cron string: any `schedule` event
-  is now a teardown. GitHub cron stays best-effort (delays/drops, worst at the top of the hour;
-  `security-nightly`'s `0 2` ran 76 min late) - fine for a teardown safety net. Each `up` rebuilds
-  the cluster from scratch (~15 min before it serves), so the live-serving slice is ~30 min.
+- **Triggering model (changed 2026-08-21): the live window is FULLY MANUAL - no schedule at all.**
+  Both the external scheduler that fired `up` on weekdays at 10/12/14/16 Europe/Warsaw and the
+  `down` cron BACKSTOP (`45 8,10,12,14`) in `deploy-aks.yml` are gone; `workflow_dispatch` is the
+  workflow's only trigger and `decide` just passes the dispatch input through. **Consequence: a
+  forgotten window keeps billing** - after an `up`, fire `down` by hand
+  (`gh workflow run deploy-aks.yml -f action=down`). Each `up` rebuilds the cluster from scratch
+  (~15 min before it serves). Front, README and architecture.md now say the demo is available on
+  request and point visitors at the contact section.
+  _(Previous model, 2026-06-19 to 2026-08-21: `up` on the external scheduler, `down` on the cron
+  backstop. GitHub cron was best-effort anyway - delays/drops worst at the top of the hour;
+  `security-nightly`'s `0 2` once ran 76 min late.)_
 - **Quality follow-ups (not deployment blockers):** `helm lint` is not yet a CI gate; the
   chart deploys `:latest` rather than the immutable `:sha` (cosign also verifies `:latest`, a
   TOCTOU gap); `SLO.md` still describes the Managed-Grafana alerting as if always-on. (RUNBOOK

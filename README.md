@@ -10,8 +10,8 @@ and it's deployed by the pipelines in this repo.
 
 ## ▶ See it running
 
-The full private-AKS platform comes up on weekdays at **10:00, 12:00, 14:00 and 16:00 (Europe/Warsaw)**
-for ~45 minutes, then tears down, so it costs nothing when idle. During a window, from any browser, no login:
+The full private-AKS platform runs **on request**, not on a schedule: a window is started by hand and
+torn down again afterwards, so it costs nothing when idle. During a window, from any browser, no login:
 
 | | |
 |---|---|
@@ -20,8 +20,9 @@ for ~45 minutes, then tears down, so it costs nothing when idle. During a window
 | 🟦 **Always-on front** (Azure Static Web Apps, $0) | https://newcode.msulawiak.pl |
 | 📁 **Timestamped proof** of each run (cosign + kubectl output) | [`docs/evidence/`](docs/evidence/) |
 
-Outside a window the cluster is gone; the always-on front stays up. Want to see it live? Ask, or
-trigger the `deploy-aks` workflow (`up`); a weekday cron tears any window back down as a safety net.
+Outside a window the cluster is gone; the always-on front stays up. Want to see it live? Ask me and
+I'll bring a window up, or trigger the `deploy-aks` workflow yourself (`up`, then `down` when done -
+nothing tears it down automatically).
 
 ---
 
